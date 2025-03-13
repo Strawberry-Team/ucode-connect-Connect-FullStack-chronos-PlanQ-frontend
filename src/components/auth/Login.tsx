@@ -43,7 +43,6 @@ const Login = () => {
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
     setIsLoading(true);
-    console.log('Submitted values:', values); 
     try {
       await dispatch(login(values));
       navigate('/');
@@ -59,16 +58,16 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 py-12 px-4 sm:px-6 lg:px-8">
       <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold text-primary mb-2">Chronos</h1>
-        <div className="h-1 w-12 bg-primary mx-auto rounded-full"></div>
+        <h1 className="text-4xl font-bold text-blue-600 mb-2">PlanQ</h1>
+        <div className="h-1 w-12 bg-blue-600 mx-auto rounded-full"></div>
       </div>
 
-      <Card className="w-[400px] shadow-xl bg-background/80 backdrop-blur-sm">
+      <Card className="w-[400px] shadow-xl bg-white rounded-lg">
         <CardHeader className="space-y-1 pb-4">
-          <h2 className="text-2xl font-bold text-center text-foreground">Welcome back</h2>
-          <p className="text-sm text-muted-foreground text-center">
+          <h2 className="text-2xl font-bold text-center text-blue-600">Welcome back</h2>
+          <p className="text-sm text-gray-500 text-center">
             Enter your credentials to access your account
           </p>
         </CardHeader>
@@ -89,7 +88,7 @@ const Login = () => {
                     <FormLabel>Email</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                         <Input
                           placeholder="Enter your email"
                           className="pl-10"
@@ -110,7 +109,7 @@ const Login = () => {
                     <FormLabel>Password</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                         <Input
                           type={showPassword ? 'text' : 'password'}
                           placeholder="Enter your password"
@@ -119,7 +118,7 @@ const Login = () => {
                         />
                         <button
                           type="button"
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                           onClick={() => setShowPassword(!showPassword)}
                         >
                           {showPassword ? (
@@ -138,7 +137,7 @@ const Login = () => {
               <div className="space-y-4">
                 <Button
                   type="submit"
-                  className="w-full h-11"
+                  className="w-full h-11 bg-blue-600 text-white hover:bg-blue-700"
                   disabled={isLoading}
                 >
                   {isLoading ? (
@@ -154,15 +153,15 @@ const Login = () => {
                 <div className="flex flex-col space-y-2 text-center">
                   <Link
                     to="/reset-password"
-                    className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200"
+                    className="text-sm text-gray-500 hover:text-blue-600 transition-colors duration-200"
                   >
                     Forgot password?
                   </Link>
                   <div className="flex items-center justify-center space-x-1 text-sm">
-                    <span className="text-muted-foreground">Don't have an account?</span>
+                    <span className="text-gray-500">Don't have an account?</span>
                     <Link
                       to="/register"
-                      className="font-medium text-primary hover:text-primary/90 transition-colors duration-200"
+                      className="font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200"
                     >
                       Sign Up
                     </Link>

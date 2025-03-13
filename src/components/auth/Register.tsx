@@ -21,12 +21,14 @@ const registerSchema = z
     firstName: z
       .string()
       .min(1, 'First name is required')
-      .max(50, 'First name must not exceed 50 characters'),
+      .max(50, 'First name must not exceed 50 characters')
+      .regex(/^[A-Za-z]+$/, 'First name must contain only English letters'), // Только английские буквы
     lastName: z
       .string()
-      .min(1, 'Last name is required')
-      .max(50, 'Last name must not exceed 50 characters'),
-    countryCode: z.string().min(1, 'Country is required'), // Код страны
+      .max(50, 'Last name must not exceed 50 characters')
+      .regex(/^[A-Za-z]*$/, 'Last name must contain only English letters') // Только английские буквы (или пустое)
+      .optional(),
+    countryCode: z.string().min(1, 'Country is required'),
     email: z
       .string()
       .min(1, 'Email is required')
@@ -34,15 +36,17 @@ const registerSchema = z
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters')
-      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-      .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-      .regex(/[0-9]/, 'Password must contain at least one number'),
+      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter') // Минимум одна заглавная буква
+      .regex(/[a-z]/, 'Password must contain at least one lowercase letter') // Минимум одна строчная буква
+      .regex(/[0-9]/, 'Password must contain at least one number') // Минимум одна цифра
+      .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'), // Минимум один специальный символ
     confirmPassword: z.string().min(1, 'Please confirm your password'),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ['confirmPassword'],
   });
+
 
 const Register = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -51,8 +55,9 @@ const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [countries, setCountries] = useState<{ label: string; value: string; flag: string }[]>([]);
   const [defaultCountry, setDefaultCountry] = useState<{ label: string; value: string; flag: string } | null>(null);
-
-
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
+  
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -107,14 +112,16 @@ const Register = () => {
     console.log('Submitted values:', values);
     setIsLoading(true);
     try {
-      // Формируем данные для отправки на сервер
-    const userData = {
+     const userData: any = {
       firstName: values.firstName,
-      lastName: values.lastName,
       email: values.email,
       password: values.password,
-      countryCode: values.countryCode, // Код страны
+      countryCode: values.countryCode,
     };
+
+    if (values.lastName) {
+      userData.lastName = values.lastName;
+    }
     console.log('Data sent to server:', userData);
 
       await dispatch(registerUser(userData));
@@ -134,28 +141,28 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-[400px] shadow-xl bg-background/80 backdrop-blur-sm">
-        <CardHeader className="space-y-1 pb-4">
-          <h2 className="text-2xl font-bold text-center text-foreground">Create Account</h2>
-          <p className="text-sm text-muted-foreground text-center">
-            Enter your details to create a new account
-          </p>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              {error && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              {success && (
-                <Alert variant="default" className="mb-4 border-primary/50 bg-primary/10">
-                  <CheckCircle className="h-4 w-4 text-primary mr-2" />
-                  <AlertDescription className="text-primary">{success}</AlertDescription>
-                </Alert>
-              )}
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 py-12 px-4 sm:px-6 lg:px-8">
+    <Card className="w-[400px] shadow-xl bg-white rounded-lg">
+      <CardHeader className="space-y-1 pb-4">
+        <h2 className="text-2xl font-bold text-center text-blue-600">Create Account</h2>
+        <p className="text-sm text-gray-500 text-center">
+          Enter your details to create a new account
+        </p>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            {success && (
+              <Alert variant="default" className="mb-4 border-blue-500 bg-blue-100">
+                <CheckCircle className="h-4 w-4 text-blue-600 mr-2" />
+                <AlertDescription className="text-blue-600">{success}</AlertDescription>
+              </Alert>
+            )}
 
               <FormField
                 control={form.control}
@@ -164,7 +171,15 @@ const Register = () => {
                   <FormItem>
                     <FormLabel>First Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter your first name" {...field} />
+                    <div className="relative">
+                                                 <User
+                                                     className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4"/>
+                                                 <Input
+                                                     placeholder="Enter your first name"
+                                                     className="pl-10"
+                                                     {...field}
+                                                 />
+                                             </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -177,8 +192,17 @@ const Register = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Last Name</FormLabel>
+                    
                     <FormControl>
-                      <Input placeholder="Enter your last name" {...field} />
+                    <div className="relative">
+                                                 <User
+                                                     className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4"/>
+                                                 <Input
+                                                     placeholder="Enter your last name (optional)"
+                                                     className="pl-10"
+                                                     {...field}
+                                                 />
+                                             </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -228,7 +252,16 @@ const Register = () => {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="Enter your email" {...field} />
+                    <div className="relative">
+                                                 <Mail
+                                                     className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4"/>
+                                                 <Input
+                                                     type="email"
+                                                     placeholder="Enter your email"
+                                                     className="pl-10"
+                                                     {...field}
+                                                 />
+                                             </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -242,11 +275,26 @@ const Register = () => {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Enter your password"
-                        {...field}
-                      />
+                       <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Enter your password"
+                          className="pl-10 pr-10"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -260,18 +308,34 @@ const Register = () => {
                   <FormItem>
                     <FormLabel>Confirm Password</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Confirm your password"
-                        {...field}
-                      />
+                    <div className="relative">
+                                                 <Lock
+                                                     className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4"/>
+                                                 <Input
+                                                     type={showConfirmPassword ? "text" : "password"}
+                                                     placeholder="Confirm your password"
+                                                     className="pl-10 pr-10"
+                                                     {...field}
+                                                 />
+                                                 <button
+                                                     type="button"
+                                                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                 >
+                                                     {showConfirmPassword ? (
+                                                         <EyeOff className="h-4 w-4"/>
+                                                     ) : (
+                                                         <Eye className="h-4 w-4"/>
+                                                     )}
+                                                 </button>
+                                             </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <Button type="submit" className="w-full h-11" disabled={isLoading}>
+<Button type="submit" className="w-full h-11 bg-blue-600 text-white hover:bg-blue-700" disabled={isLoading}>
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -285,7 +349,7 @@ const Register = () => {
               <div className="text-center">
                 <Link
                   to="/login"
-                  className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200"
+                  className="text-sm text-gray-500 hover:text-blue-600 transition-colors duration-200"
                 >
                   Already have an account? Sign in
                 </Link>

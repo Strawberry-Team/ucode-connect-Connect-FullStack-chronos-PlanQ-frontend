@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import MainCalendar from './MainCalendar';
+import Header from './Header'; // Подключаем хедер
 import axios from 'axios';
 
 interface Calendar {
@@ -93,24 +94,31 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ user }) => {
   };
 
   return (
-    <div className="flex h-screen">
-      <Sidebar
-        calendars={calendars}
-        onToggleCalendar={handleToggleCalendar}
-        onAddCalendar={handleAddCalendar}
-      />
-      <div className="flex-1 bg-gray-100 p-6">
-        <MainCalendar
-          visibleCalendars={calendars.filter((cal) => cal.isVisible).map((cal) => cal.id)}
-          events={calendars
-            .filter((cal) => cal.isVisible)
-            .flatMap((cal) => cal.events)}
+    <div className="flex flex-col h-screen">
+
+
+      {/* Основной контент */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Боковая панель */}
+        <Sidebar
           calendars={calendars}
+          onToggleCalendar={handleToggleCalendar}
+          onAddCalendar={handleAddCalendar}
         />
+
+        {/* Основной календарь */}
+        <div className="flex-1 bg-gray-100 p-6 overflow-auto">
+          <MainCalendar
+            visibleCalendars={calendars.filter((cal) => cal.isVisible).map((cal) => cal.id)}
+            events={calendars
+              .filter((cal) => cal.isVisible)
+              .flatMap((cal) => cal.events)}
+            calendars={calendars}
+          />
+        </div>
       </div>
     </div>
   );
-  
 };
 
 export default CalendarPage;

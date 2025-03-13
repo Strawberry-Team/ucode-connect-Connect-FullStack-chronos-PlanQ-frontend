@@ -1,283 +1,199 @@
-import React, {useEffect, useState} from 'react'
-import {useSelector, useDispatch} from 'react-redux'
-import {RootState, AppDispatch} from '../../store.ts'
-import {clearError} from "@/reducers/authReducer.ts"
-import {getCurrentUser, uploadAvatar, updateCurrentUser, getUserById} from '../../actions/userActions.ts'
-import {Button} from '../ui/button.tsx'
-import {Input} from '../ui/input.tsx'
-import {Card, CardContent} from '../ui/card.tsx'
-import {Avatar, AvatarFallback, AvatarImage} from "../ui/avatar.tsx"
-import {AlertCircle, Camera, User, Mail, Star, Calendar, Crown, Pencil, Lock, Save, X, Upload} from 'lucide-react'
-import {Alert, AlertDescription, AlertTitle} from "../ui/alert.tsx"
-import {format} from 'date-fns'
-import PasswordUpdateSection from "@/components/user/PasswordUpdateSection.tsx"
+import React, { useEffect, useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState, AppDispatch } from '../../store';
+import { getCurrentUser, uploadAvatar, updateCurrentUser } from '../../actions/userActions';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Card, CardContent } from '../ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Mail, Calendar, Upload, Save, X, Lock } from 'lucide-react';
+import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
-function Profile() {
-    const dispatch = useDispatch<AppDispatch>()
-    const authUser = useSelector((state: RootState) => state.auth.user)
-    const error = useSelector((state: RootState) => state.auth.error)
-    const [editMode, setEditMode] = useState(false)
-    const [fullName, setFullName] = useState('')
-    const [avatarFile, setAvatarFile] = useState<File | null>(null)
-    const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
-    const [successMessage, setSuccessMessage] = useState<string | null>(null)
-    const [activeSection, setActiveSection] = useState<'profile' | 'password'>('profile')
+const Profile: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
+  const authUser = useSelector((state: RootState) => state.auth.user);
+  const [editMode, setEditMode] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-    useEffect(() => {
-        const fetchUser = async () => {
-            if (authUser) {
-                const response = await dispatch(getUserById(authUser.id))
-            }
-        }
-        fetchUser()
-    }, [dispatch, authUser])
-
-    const handleSaveName = async () => {
-        if (authUser) {
-            try {
-                await dispatch(updateCurrentUser({full_name: fullName}, authUser.id))
-                setSuccessMessage('Full name updated successfully.')
-                setEditMode(false)
-            } catch (err) {
-                // Error is handled through auth.error
-            }
-        }
+  useEffect(() => {
+    if (authUser) {
+      setFirstName(authUser.firstName);
+      setLastName(authUser.lastName);
     }
+  }, [authUser]);
 
-    const handlePasswordUpdate = async (passwordData: { currentPassword: string; newPassword: string }) => {
-        if (authUser) {
-            try {
-                await dispatch(updateCurrentUser({
-                    old_password: passwordData.currentPassword,
-                    new_password: passwordData.newPassword
-                }, authUser.id))
-                setSuccessMessage('Password changed successfully.')
-                setEditMode(false)
-            } catch (err) {
-                // Error is handled through auth.error
-            }
-        }
+  const handleSaveProfile = async () => {
+    if (authUser) {
+      try {
+        await dispatch(
+          updateCurrentUser(
+            { firstName, lastName },
+            authUser.id
+          )
+        );
+        setSuccessMessage('Profile updated successfully.');
+        setEditMode(false);
+      } catch (err) {
+        console.error('Error updating profile:', err);
+      }
     }
+  };
 
-    const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files && event.target.files[0]) {
-            const file = event.target.files[0]
-            setAvatarFile(file)
-            const reader = new FileReader()
-            reader.onloadend = () => {
-                setAvatarPreview(reader.result as string)
-            }
-            reader.readAsDataURL(file)
-        }
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
+  };
 
-    const handleUploadAvatar = async () => {
-        if (avatarFile && authUser) {
-            const formData = new FormData()
-            formData.append('photo', avatarFile)
-            try {
-                await dispatch(uploadAvatar(formData, authUser.id))
-                setSuccessMessage('Avatar uploaded successfully.')
-                setAvatarFile(null)
-                setAvatarPreview(null)
-                dispatch(getCurrentUser(authUser.id))
-                setEditMode(false)
-            } catch (err) {
-                // Error is handled through auth.error
-            }
-        }
+  const handleUploadAvatar = async () => {
+    if (avatarFile && authUser) {
+      const formData = new FormData();
+      formData.append('photo', avatarFile);
+      try {
+        await dispatch(uploadAvatar(formData, authUser.id));
+        setSuccessMessage('Avatar uploaded successfully.');
+        setAvatarFile(null);
+        setAvatarPreview(null);
+        dispatch(getCurrentUser(authUser.id));
+      } catch (err) {
+        console.error('Error uploading avatar:', err);
+      }
     }
+  };
 
-    if (!authUser) return <div>User not found</div>
+  const handleResetPassword = () => {
+    navigate('/reset-password');
+  };
 
-    return (
-        <div className="min-h-screen bg-gradient-to-b from-background via-background/50 to-background">
-            <div className="container mx-auto px-4 max-w-5xl pt-20">
-                {/* Hero Section */}
-                <div className="relative mb-24">
-                    <div
-                        className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent rounded-3xl blur-3xl"/>
-                    <div
-                        className="relative h-80 bg-card/50 backdrop-blur-xl rounded-3xl border shadow-2xl overflow-hidden">
-                        <div
-                            className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-transparent"/>
-                        <div className="absolute inset-0 bg-grid-white/[0.02]"/>
-                    </div>
-                    <div className="absolute -bottom-12 left-8 flex items-end gap-6">
-                        <div className="relative group">
-                            <Avatar className="h-32 w-32 ring-4 ring-background shadow-2xl">
-                                <AvatarImage
-                                    src={avatarPreview || authUser.profile_picture_url}
-                                    alt={authUser.login}
-                                    className="object-cover"
-                                />
-                                <AvatarFallback className="bg-primary/5 text-4xl">
-                                    {authUser.login?.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                            </Avatar>
-                            {editMode && (
-                                <div
-                                    className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <label className="cursor-pointer">
-                                        <Camera className="h-8 w-8 text-white"/>
-                                        <Input
-                                            type="file"
-                                            onChange={handleAvatarChange}
-                                            accept="image/*"
-                                            className="hidden"
-                                        />
-                                    </label>
-                                </div>
-                            )}
-                        </div>
-                        <div className="mb-4">
-                            <h1 className="text-4xl font-bold flex items-center gap-3 mb-2">
-                                {!editMode && (
-                                    <Button
-                                        onClick={() => {
-                                            setEditMode(true);
-                                            setSuccessMessage(null);
-                                            dispatch(clearError());
-                                        }}
-                                        variant="outline"
-                                        size="sm"
-                                        className="ml-4"
-                                    >
-                                        <Pencil className="h-4 w-4 mr-2"/>
-                                        Edit Profile
-                                    </Button>
-                                )}
-                            </h1>
-                            {authUser.login && (
-                                <p className="text-xl text-muted-foreground">@{authUser.login}</p>
-                            )}
-                        </div>
-                    </div>
-                </div>
+  if (!authUser) return <div>User not found</div>;
 
-                {/* Main Content */}
-                <div className="grid gap-6 mb-8">
-                    {error && (
-                        <Alert variant="destructive">
-                            <AlertCircle className="h-4 w-4"/>
-                            <AlertTitle>Error</AlertTitle>
-                            <AlertDescription>{error}</AlertDescription>
-                        </Alert>
-                    )}
-
-                    {successMessage && (
-                        <Alert className="bg-green-50 border-green-200">
-                            <AlertTitle className="text-green-800">Success</AlertTitle>
-                            <AlertDescription className="text-green-700">{successMessage}</AlertDescription>
-                        </Alert>
-                    )}
-
-                    {editMode && (
-                        <div className="flex gap-4 mb-6">
-                            <Button
-                                variant={activeSection === 'profile' ? 'default' : 'outline'}
-                                onClick={() => setActiveSection('profile')}
-                            >
-                                Profile Details
-                            </Button>
-                            <Button
-                                variant={activeSection === 'password' ? 'default' : 'outline'}
-                                onClick={() => setActiveSection('password')}
-                            >
-                                Change Password
-                            </Button>
-                        </div>
-                    )}
-
-                    {/* Profile Info Card */}
-                    {(!editMode || activeSection === 'profile') && (
-                        <Card className="bg-card/50 backdrop-blur border shadow-xl">
-                            <CardContent className="pt-6">
-                                {editMode ? (
-                                    <div className="space-y-6">
-                                        <div className="space-y-4">
-                                            <div className="relative">
-                                                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400"/>
-                                                <Input
-                                                    value={fullName}
-                                                    onChange={(e) => setFullName(e.target.value)}
-                                                    placeholder="Full Name"
-                                                    className="pl-10"
-                                                />
-                                            </div>
-                                            <Button
-                                                onClick={handleSaveName}
-                                                className="w-full flex items-center justify-center gap-2"
-                                            >
-                                                <Save className="h-4 w-4"/>
-                                                Save Name
-                                            </Button>
-                                        </div>
-
-                                        {avatarPreview && (
-                                            <Button
-                                                onClick={handleUploadAvatar}
-                                                disabled={!avatarFile}
-                                                className="w-full flex items-center justify-center gap-2"
-                                            >
-                                                <Upload className="h-4 w-4"/>
-                                                Upload New Avatar
-                                            </Button>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-blue-500/10 rounded-lg">
-                                                <Mail className="w-5 h-5 text-blue-500"/>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Email</p>
-                                                <p className="font-medium">{authUser.email}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-emerald-500/10 rounded-lg">
-                                                <Calendar className="w-5 h-5 text-emerald-500"/>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Member Since</p>
-                                                <p className="font-medium">
-                                                    {format(new Date(authUser.created_at), 'MMMM d, yyyy')}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    )}
-
-                    {/* Password Update Section */}
-                    {editMode && activeSection === 'password' && (
-                        <PasswordUpdateSection onSubmit={handlePasswordUpdate}/>
-                    )}
-
-                    {editMode && (
-                        <div className="flex justify-end pt-4">
-                            <Button
-                                onClick={() => {
-                                    setEditMode(false);
-                                    dispatch(clearError());
-                                }}
-                                variant="outline"
-                                className="flex items-center gap-2"
-                            >
-                                <X className="h-4 w-4"/>
-                                Cancel
-                            </Button>
-                        </div>
-                    )}
-                </div>
-            </div>
+  return (
+    <div className="min-h-screen bg-gray-100 py-12 px-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Аватар и информация */}
+        <div className="flex items-center gap-6 mb-8">
+          <div className="relative group">
+            <Avatar
+              className="h-32 w-32 ring-4 ring-gray-200 shadow-lg cursor-pointer"
+              onClick={() => document.getElementById('avatarInput')?.click()} // Клик на аватар открывает выбор файла
+            >
+              <AvatarImage
+                src={avatarPreview || `http://localhost:3001/uploads/avatars/${authUser.profilePictureName}`}
+                alt={`${authUser.firstName} ${authUser.lastName}`}
+                className="object-cover"
+              />
+              <AvatarFallback className="bg-gray-200 text-gray-500 text-4xl">
+                {authUser.firstName.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <Input
+              id="avatarInput"
+              type="file"
+              onChange={handleAvatarChange}
+              accept="image/*"
+              className="hidden"
+            />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold">{`${authUser.firstName} ${authUser.lastName}`}</h1>
+            <p className="text-gray-500">{authUser.email}</p>
+          </div>
         </div>
-    )
-}
 
-export default Profile
+        {/* Основной контент */}
+        <Card className="bg-white shadow-lg rounded-lg">
+          <CardContent className="p-6">
+            {successMessage && (
+              <div className="mb-4 text-green-600">{successMessage}</div>
+            )}
+            {editMode ? (
+              <div className="space-y-4">
+                <Input
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="First Name"
+                  className="w-full"
+                />
+                <Input
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Last Name"
+                  className="w-full"
+                />
+                <Button
+                  onClick={handleSaveProfile}
+                  className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Profile
+                </Button>
+                {avatarPreview && (
+                  <Button
+                    onClick={handleUploadAvatar}
+                    className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Avatar
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Mail className="w-5 h-5 text-blue-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="font-medium">{authUser.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-5 h-5 text-green-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Member Since</p>
+                    <p className="font-medium">
+                      {format(new Date(authUser.createdAt), 'MMMM d, yyyy')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Кнопки */}
+        <div className="flex justify-between mt-4">
+          {editMode && (
+            <Button
+              onClick={() => setEditMode(false)}
+              className="bg-gray-200 text-gray-600 hover:bg-gray-300"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Cancel
+            </Button>
+          )}
+          <Button
+            onClick={handleResetPassword}
+            className="bg-red-600 text-white hover:bg-red-700"
+          >
+            <Lock className="h-4 w-4 mr-2" />
+            Reset Password
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Profile;
