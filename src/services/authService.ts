@@ -1,17 +1,19 @@
 import axios from 'axios'
 import userService from './userService'
 
-const API_URL = 'http://localhost:3001/api/auth'
+const API_URL = 'http://localhost:3000/api/auth'
 
 interface RegisterData {
-    login: string
+    firstName: string
+    lastName: string
     email: string
     password: string
+    countryCode: string
+    
 }
 
 interface LoginData {
-    login?: string
-    email?: string
+    email: string
     password: string
 }
 

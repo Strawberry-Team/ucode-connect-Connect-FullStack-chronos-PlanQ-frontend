@@ -13,8 +13,24 @@ import PrivateRoute from './components/PrivateRoute'
 import ConfirmEmail from "@/components/auth/ConfirmEmail.tsx"
 import ScrollToTop from "@/components/ScrollToTop.tsx";
 import Footer from "@/components/Footer.tsx";
+import CalendarPage from './components/CalendarPage';
+import MainCalendar from './components/MainCalendar';
+import React, { useState } from 'react';
+import './App.css';
 
 function App() {
+    // Состояние для хранения данных пользователя
+  const [user, setUser] = useState<{
+    id: string;
+    name: string;
+    country: string;
+    isLoggedIn: boolean;
+  }>({
+    id: '123',
+    name: 'John Doe',
+    country: 'UA',
+    isLoggedIn: true,
+  });
     return (
         <Provider store={store}>
             <Router>
@@ -23,7 +39,14 @@ function App() {
                     <Header/>
                     <main className="container mx-auto px-4 py-8">
                         <Routes>
-                            <Route path="/" element={<Home/>}/>
+                        <Route
+                path="/"
+                element={
+                  
+                    <CalendarPage user={user} />
+                  
+                }
+              />
                             <Route path="/login" element={<Login/>}/>
                             <Route path="/register" element={<Register/>}/>
                             <Route path="/reset-password" element={<ResetPassword/>}/>

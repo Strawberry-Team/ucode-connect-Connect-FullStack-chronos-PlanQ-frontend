@@ -3,14 +3,15 @@ import authService from '../services/authService'
 import {setLoading, setUser, setError, logout as logoutAction} from '../reducers/authReducer'
 
 interface RegisterData {
-    login: string
+    firstName: string
+    lastName: string
+    country: string
     email: string
     password: string
 }
 
 interface LoginData {
-    login?: string
-    email?: string
+    email: string
     password: string
 }
 
