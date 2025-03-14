@@ -42,9 +42,11 @@ export const getUserById = (userId: string) => async (dispatch: AppDispatch) => 
 export const updateCurrentUser = (userData: any, userId: string) => async (dispatch: AppDispatch) => {
     try {
         dispatch(updateUserRequest())
+        console.log('user data', userData);
         const data = await userService.updateCurrentUser(userData, userId)
-        dispatch(updateUserSuccess(data.data))
-        dispatch({type: 'auth/setUser', payload: data.data})
+
+        dispatch(updateUserSuccess(data))
+        dispatch({type: 'auth/setUser', payload: data})
     } catch (error: any) {
         dispatch(updateUserFailure(error.response?.data?.message || 'Failed to update user'))
         dispatch(setError(error.response?.data?.message || 'Failed to update user'))
@@ -58,10 +60,11 @@ export const uploadAvatar = (formData: FormData, userId: string) => async (dispa
     try {
         dispatch(uploadAvatarRequest())
         const data = await userService.uploadAvatar(formData)
+        console.log("data", data.server_filename);
         dispatch(uploadAvatarSuccess(data.server_filename))
-        const updatedData = await userService.updateCurrentUser({profile_picture_name: data.server_filename}, userId)
-        dispatch(updateUserSuccess(updatedData.data))
-        dispatch({type: 'auth/setUser', payload: updatedData.data})
+        const updatedData = await userService.updateCurrentUser({profilePictureName: data.server_filename}, userId)
+        dispatch(updateUserSuccess(updatedData))
+        dispatch({type: 'auth/setUser', payload: updatedData})
     } catch (error: any) {
         dispatch(uploadAvatarFailure(error.response?.data?.message || 'Failed to upload avatar'))
         dispatch(setError(error.response?.data?.message || 'Failed to upload avatar'))

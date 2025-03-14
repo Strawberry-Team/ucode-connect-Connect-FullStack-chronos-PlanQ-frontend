@@ -1,7 +1,7 @@
 import axios from 'axios'
 import authService from './authService'
 
-const API_URL = 'http://localhost:3001/api'
+const API_URL = 'http://localhost:3000/api'
 
 const userService = {
     setAuthToken: (token: string) => {
@@ -54,11 +54,12 @@ axios.interceptors.response.use(
             originalRequest._retry = true
             try {
                 const refreshedTokenData = await authService.refreshToken()
-                originalRequest.headers['Authorization'] = `Bearer ${refreshedTokenData.data.accessToken}`
-                sessionStorage.setItem('accessToken', refreshedTokenData.data.accessToken)
-                userService.setAuthToken(refreshedTokenData.data.accessToken)
+                originalRequest.headers['Authorization'] = `Bearer ${refreshedTokenData.accessToken}`
+                sessionStorage.setItem('accessToken', refreshedTokenData.accessToken)
+                userService.setAuthToken(refreshedTokenData.accessToken)
                 return axios(originalRequest)
             } catch (refreshError) {
+                console.log('hello');
                 await authService.logout()
                 return Promise.reject(refreshError)
             }

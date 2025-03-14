@@ -10,6 +10,8 @@ import { useState, useEffect } from 'react';
 
 function Header() {
     const user = useSelector((state: RootState) => state.auth.user);
+    
+    console.log(user);
     const dispatch = useDispatch<AppDispatch>();
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -76,7 +78,7 @@ function Header() {
                                                 className="h-10 w-10 ring-2 ring-blue-500/20 transition-all hover:ring-blue-500/40"
                                             >
                                                 <AvatarImage
-                                                    src={user.profile_picture_url}
+                                                    src={`http://localhost:3000/uploads/avatars/${user.profilePictureName}`}
                                                     alt={user.firstName}
                                                     className="object-cover"
                                                 />
@@ -92,7 +94,7 @@ function Header() {
                                         <div className="flex flex-col p-2 gap-2">
                                             <div className="flex items-center gap-2">
                                                 <Avatar className="h-10 w-10">
-                                                    <AvatarImage src={user.profile_picture_url} alt={user.firstName} />
+                                                    <AvatarImage src={user.profilePictureUrl} alt={user.firstName} />
                                                     <AvatarFallback>
                                                         {user.firstName.charAt(0).toUpperCase()}
                                                     </AvatarFallback>
@@ -158,7 +160,7 @@ function Header() {
                                 <div className="px-4 py-2">
                                     <div className="flex items-center space-x-2">
                                         <Avatar className="h-10 w-10">
-                                            <AvatarImage src={user.profile_picture_url} alt={user.firstName} />
+                                            <AvatarImage src={user.profilePictureUrl} alt={user.firstName} />
                                             <AvatarFallback>{user.firstName.charAt(0).toUpperCase()}</AvatarFallback>
                                         </Avatar>
                                         <div className="flex flex-col">

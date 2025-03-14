@@ -50,7 +50,7 @@ const authService = {
         // Генерируем URL для аватара пользователя
         const userWithProfileUrl = {
           ...user,
-          profilePictureUrl: `http://localhost:3001/uploads/avatars/${user.profilePictureName}`,
+          profilePictureUrl: `http://localhost:3000/uploads/avatars/${user.profilePictureName}`,
         };
 
         // Сохраняем токены и данные пользователя в localStorage/sessionStorage

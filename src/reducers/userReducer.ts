@@ -2,11 +2,14 @@ import {createSlice, PayloadAction} from '@reduxjs/toolkit'
 
 interface User {
     id: string
-    login: string
+    firstName: string;
+    lastName: string;
     email: string
-    full_name: string
-    profile_picture_url: string
-    role: string
+    profilePictureUrl: string
+    profilePictureName: string
+    countryCode: string;
+    createdAt: string;
+    updatedAt: string;
 }
 
 
@@ -56,7 +59,7 @@ const userSlice = createSlice({
         },
         uploadAvatarSuccess: (state, action: PayloadAction<string>) => {
             if (state.currentUser) {
-                state.currentUser.profile_picture_url = action.payload
+                state.currentUser.profilePictureUrl = action.payload
             }
             state.loading = false
         },
