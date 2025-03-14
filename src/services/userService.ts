@@ -54,12 +54,14 @@ axios.interceptors.response.use(
             originalRequest._retry = true
             try {
                 const refreshedTokenData = await authService.refreshToken()
+                if (refreshedTokenData.newRefreshToken) {
+                    localStorage.setItem("refreshToken", refreshedTokenData.newRefreshToken);
+                }
                 originalRequest.headers['Authorization'] = `Bearer ${refreshedTokenData.accessToken}`
                 sessionStorage.setItem('accessToken', refreshedTokenData.accessToken)
                 userService.setAuthToken(refreshedTokenData.accessToken)
                 return axios(originalRequest)
             } catch (refreshError) {
-                console.log('hello');
                 await authService.logout()
                 return Promise.reject(refreshError)
             }

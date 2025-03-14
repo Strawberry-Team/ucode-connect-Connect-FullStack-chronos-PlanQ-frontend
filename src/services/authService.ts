@@ -31,6 +31,7 @@ interface AuthResponse {
   user: User;
   accessToken: string;
   refreshToken: string;
+  newRefreshToken?: string;
 }
 
 const authService = {
