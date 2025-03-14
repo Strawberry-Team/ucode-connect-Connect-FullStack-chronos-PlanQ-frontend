@@ -35,30 +35,29 @@ interface AuthResponse {
 
 const authService = {
   register: async (userData: RegisterData) => {
-    const response = await axios.post(`${API_URL}/register`, userData);
+    const response = await axios.post(`${API_URL}/register`, userData, {
+      // withCredentials: true,
+    });
     return response.data;
   },
 
   login: async (loginData: LoginData) => {
     try {
-      const response = await axios.post<AuthResponse>(`${API_URL}/login`, loginData);
+      const response = await axios.post<AuthResponse>(`${API_URL}/login`, loginData, {
+      });
 
-      // Сохраняем токены и данные пользователя
       if (response.data.accessToken) {
         const { user, accessToken, refreshToken } = response.data;
 
-        // Генерируем URL для аватара пользователя
         const userWithProfileUrl = {
           ...user,
           profilePictureUrl: `http://localhost:3000/uploads/avatars/${user.profilePictureName}`,
         };
 
-        // Сохраняем токены и данные пользователя в localStorage/sessionStorage
         sessionStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', refreshToken);
         localStorage.setItem('user', JSON.stringify(userWithProfileUrl));
 
-        // Устанавливаем токен для последующих запросов
         userService.setAuthToken(accessToken);
 
         return { user: userWithProfileUrl, accessToken, refreshToken };

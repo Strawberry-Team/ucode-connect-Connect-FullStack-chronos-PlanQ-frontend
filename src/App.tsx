@@ -14,8 +14,9 @@ import ConfirmEmail from '@/components/auth/ConfirmEmail.tsx';
 import ScrollToTop from '@/components/ScrollToTop.tsx';
 import Footer from '@/components/Footer.tsx';
 import CalendarPage from './components/CalendarPage';
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import './App.css';
+import csrfService from "@/services/csrfService.ts";
 
 function App() {
   // Состояние для хранения данных пользователя
@@ -30,6 +31,16 @@ function App() {
     country: 'UA',
     isLoggedIn: true,
   });
+
+  useEffect(() => {
+    // Получаем CSRF токен и настраиваем axios при монтировании компонента
+    const initCsrf = async () => {
+      await csrfService.fetchCsrfToken();
+      csrfService.setupAxiosInterceptors();
+    };
+
+    initCsrf();
+  }, []);
 
   return (
     <Provider store={store}>
