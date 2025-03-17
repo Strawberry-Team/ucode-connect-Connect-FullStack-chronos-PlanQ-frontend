@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { useForm, SubmitHandler } from "react-hook-form";
 import { RootState, AppDispatch } from "../../store";
 import {
   getCurrentUser,
@@ -9,8 +10,21 @@ import {
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Card, CardContent } from "../ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Mail, Calendar, Save, Lock, Globe, Edit } from "lucide-react";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "../ui/avatar";
+import {
+  Mail,
+  Calendar,
+  Save,
+  Lock,
+  Globe,
+  Edit,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { format } from "date-fns";
 import axios from "axios";
 import Select from "react-select";
@@ -20,37 +34,77 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
+  Form,
 } from "../ui/form";
-import { Eye, EyeOff } from "lucide-react";
+import Alert from "../Alert";
+
 interface CountryOption {
   label: string;
   value: string;
   flag: string;
 }
 
+interface ResetFormValues {
+  oldPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
 const Profile: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const authUser = useSelector((state: RootState) => state.auth.user);
+
+  // Основные состояния профиля
   const [editMode, setEditMode] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [country, setCountry] = useState("");
   const [countries, setCountries] = useState<CountryOption[]>([]);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Будем использовать единое состояние для вывода сообщений пользователю
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
-  // Состояния для модального окна восстановления пароля
+
   const [showResetModal, setShowResetModal] = useState(false);
-  // Выбор способа восстановления: "email" или "oldPassword"
-  const [resetMethod, setResetMethod] = useState<"email" | "oldPassword">(
-    "email"
-  );
-  // Поля для варианта восстановления через старый пароль
-  const [oldPassword, setOldPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [resetMethod, setResetMethod] = useState<"email" | "oldPassword">("email");
+
+  // Создаём экземпляр формы для восстановления через старый пароль
+  const resetForm = useForm<ResetFormValues>({
+    defaultValues: {
+      oldPassword: "",
+      newPassword: "",
+      confirmNewPassword: "",
+    },
+  });
+
+  const onResetSubmit: SubmitHandler<ResetFormValues> = async (data) => {
+    if (data.newPassword !== data.confirmNewPassword) {
+      setAlertMessage("New password and confirmation do not match.");
+      return;
+    }
+    if (authUser) {
+      try {
+        await dispatch(
+          updateCurrentUser(
+            {
+              oldPassword: data.oldPassword,
+              newPassword: data.newPassword,
+            },
+            authUser.id
+          )
+        );
+        setAlertMessage("Password updated successfully.");
+        setShowResetModal(false);
+      } catch (err: any) {
+        setAlertMessage(
+          "Failed to update password: " +
+            (err.response?.data?.message || "")
+        );
+      }
+    }
+  };
 
   useEffect(() => {
     if (authUser) {
@@ -60,14 +114,12 @@ const Profile: React.FC = () => {
     }
   }, [authUser]);
 
-  // Получение списка стран
   useEffect(() => {
     const fetchCountries = async () => {
       try {
         const response = await axios.get(
           "http://localhost:3000/api/countries"
         );
-        // Сохраняем объекты со свойствами: label, value и flag
         const countryOptions: CountryOption[] = response.data.map(
           (country: any) => ({
             label: country.name,
@@ -94,10 +146,10 @@ const Profile: React.FC = () => {
             authUser.id
           )
         );
-        setSuccessMessage("Profile updated successfully.");
+        setAlertMessage("Profile updated successfully.");
         setEditMode(false);
       } catch (err) {
-        setErrorMessage("Failed to update profile.");
+        setAlertMessage("Failed to update profile.");
         console.error("Error updating profile:", err);
       }
     }
@@ -113,57 +165,29 @@ const Profile: React.FC = () => {
 
       try {
         await dispatch(uploadAvatar(formData, authUser.id));
-        setSuccessMessage("Avatar uploaded successfully.");
-        dispatch(getCurrentUser(authUser.id)); // Обновляем данные пользователя
+        setAlertMessage("Avatar uploaded successfully.");
+        dispatch(getCurrentUser(authUser.id));
       } catch (err) {
-        setErrorMessage("Failed to upload avatar.");
+        setAlertMessage("Failed to upload avatar.");
         console.error("Error uploading avatar:", err);
       }
     }
   };
 
-  // Восстановление пароля по варианту через старый пароль
-  const handleOldPasswordReset = async () => {
-    // Проверяем, что новый пароль совпадает с подтверждением
-    if (newPassword !== confirmNewPassword) {
-      setErrorMessage("New password and confirmation do not match.");
-      return;
-    }
-    if (authUser) {
-      try {
-        // Отправляем PATCH-запрос с полями oldPassword и newPassword
-        await axios.patch(`http://localhost:3000/api/users/${authUser.id}`, {
-          oldPassword,
-          newPassword,
-        });
-        setSuccessMessage("Password updated successfully.");
-        setShowResetModal(false);
-        // При необходимости можно обновить данные пользователя:
-        // dispatch(getCurrentUser(authUser.id));
-      } catch (err: any) {
-        setErrorMessage(
-          "Failed to update password: " + (err.response?.data?.message || "")
-        );
-      }
-    }
-  };
-
-  // Отправка запроса на восстановление по email
   const handleEmailReset = async () => {
     if (authUser) {
       try {
         await axios.post("http://localhost:3000/api/auth/reset-password", {
           email: authUser.email,
         });
-        setSuccessMessage("Password reset link sent to your email.");
+        setAlertMessage("Password reset link sent to your email.");
         setShowResetModal(false);
       } catch (err) {
-        setErrorMessage("Failed to send password reset link.");
+        setAlertMessage("Failed to send password reset link.");
       }
     }
   };
 
-  // Для отображения страны в профиле
   const selectedCountry = countries.find(
     (c) => c.value === authUser?.countryCode
   );
@@ -207,15 +231,9 @@ const Profile: React.FC = () => {
           </div>
         </div>
 
-        {/* Основной контент */}
+        {/* Основной контент профиля */}
         <Card className="bg-white shadow-lg rounded-lg">
           <CardContent className="p-6">
-            {successMessage && (
-              <div className="mb-4 text-green-600">{successMessage}</div>
-            )}
-            {errorMessage && (
-              <div className="mb-4 text-red-600">{errorMessage}</div>
-            )}
             {editMode ? (
               <div className="space-y-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -306,10 +324,7 @@ const Profile: React.FC = () => {
                         <img
                           src={selectedCountry.flag}
                           alt={selectedCountry.label}
-                          style={{
-                            width: 20,
-                            height: 15,
-                          }}
+                          style={{ width: 20, height: 15 }}
                           className="rounded-sm"
                         />
                       )}
@@ -326,7 +341,7 @@ const Profile: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Кнопки */}
+        {/* Кнопки профиля */}
         <div className="flex justify-between mt-4">
           <Button
             onClick={() => setEditMode(!editMode)}
@@ -337,7 +352,7 @@ const Profile: React.FC = () => {
           </Button>
           <Button
             onClick={() => {
-              setResetMethod("email"); // по умолчанию вариант email
+              setResetMethod("email"); // По умолчанию вариант email
               setShowResetModal(true);
             }}
             className="bg-red-600 text-white hover:bg-red-700"
@@ -362,9 +377,7 @@ const Profile: React.FC = () => {
               </button>
             </div>
             <div className="mb-4">
-              <p className="text-sm text-gray-700 mb-2">
-                Select reset method:
-              </p>
+              <p className="text-sm text-gray-700 mb-2">Select reset method:</p>
               <div className="flex space-x-4">
                 <button
                   className={`px-4 py-2 border rounded ${
@@ -402,53 +415,134 @@ const Profile: React.FC = () => {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Old Password
-                  </label>
-                  <Input
-                    type="password"
-                    value={oldPassword}
-                    onChange={(e) => setOldPassword(e.target.value)}
-                    placeholder="Enter old password"
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    New Password
-                  </label>
-                  <Input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Enter new password"
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Confirm New Password
-                  </label>
-                  <Input
-                    type="password"
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    placeholder="Confirm new password"
-                    className="w-full"
-                  />
-                </div>
-                <Button
-                  onClick={handleOldPasswordReset}
-                  className="w-full bg-blue-600 text-white hover:bg-blue-700"
+              <Form {...resetForm}>
+                <form
+                  onSubmit={resetForm.handleSubmit(onResetSubmit)}
+                  className="space-y-4"
                 >
-                  Update Password
-                </Button>
-              </div>
+                  <FormField
+                    control={resetForm.control}
+                    name="oldPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Old Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                            <Input
+                              type={showOldPassword ? "text" : "password"}
+                              placeholder="Enter old password"
+                              className="pl-10 pr-10"
+                              {...field}
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setShowOldPassword(!showOldPassword)
+                              }
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              {showOldPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={resetForm.control}
+                    name="newPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>New Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                            <Input
+                              type={showNewPassword ? "text" : "password"}
+                              placeholder="Enter new password"
+                              className="pl-10 pr-10"
+                              {...field}
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setShowNewPassword(!showNewPassword)
+                              }
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              {showNewPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={resetForm.control}
+                    name="confirmNewPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm New Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                            <Input
+                              type={showConfirmNewPassword ? "text" : "password"}
+                              placeholder="Confirm new password"
+                              className="pl-10 pr-10"
+                              {...field}
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setShowConfirmNewPassword(
+                                  !showConfirmNewPassword
+                                )
+                              }
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              {showConfirmNewPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    Update Password
+                  </Button>
+                </form>
+              </Form>
             )}
           </div>
         </div>
+      )}
+
+      {/* Отображение Alert-компонента */}
+      {alertMessage && (
+        <Alert message={alertMessage} onClose={() => setAlertMessage(null)} />
       )}
     </div>
   );

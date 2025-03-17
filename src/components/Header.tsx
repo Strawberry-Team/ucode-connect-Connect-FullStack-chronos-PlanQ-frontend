@@ -41,16 +41,12 @@ function Header() {
     };
 
     return (
-        <header
-            className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
-                isScrolled ? 'bg-gray-100/80 backdrop-blur-md shadow-md' : 'bg-gray-100'
-            }`}
-        >
+        <header className="fixed top-0 left-0 w-full z-50 bg-gray-100 shadow-md transition-all duration-300">
             <div className="container mx-auto px-6"> {/* Добавлен класс px-6 для отступов */}
                 <div className="flex justify-between items-center h-16 lg:h-20">
                     {/* Название проекта */}
                     <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-                        <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-transparent">
+                        <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-700 to-blue-700 bg-clip-text text-transparent">
                             PlanQ
                         </h1>
                     </Link>
@@ -83,7 +79,7 @@ function Header() {
                                                     className="object-cover"
                                                 />
                                                 <AvatarFallback
-                                                    className="bg-gradient-to-br from-blue-500 to-blue-700 text-white"
+                                                    className="bg-gradient-to-br from-blue-700 to-blue-700 text-white"
                                                 >
                                                     {user.firstName.charAt(0).toUpperCase()}
                                                 </AvatarFallback>

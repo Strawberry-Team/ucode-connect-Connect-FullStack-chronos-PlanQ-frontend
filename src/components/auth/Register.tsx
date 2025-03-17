@@ -76,9 +76,9 @@ const Register = () => {
       try {
         const response = await axios.get('http://localhost:3000/api/countries');
         const countryOptions = response.data.map((country: any) => ({
-          label: country.name, // Только название страны
-          value: country.code, // Код страны
-          flag: country.flag || '', // Флаг страны
+          label: country.name,
+          value: country.code,
+          flag: country.flag || '',
         }));
         setCountries(countryOptions);
       } catch (err) {
@@ -89,16 +89,15 @@ const Register = () => {
     fetchCountries();
   }, []);
 
-  // Получение страны пользователя по IP
   useEffect(() => {
     const fetchUserCountry = async () => {
       try {
-        const response = await axios.get('http://ip-api.com/json'); // API для геолокации
-        const countryCode = response.data.countryCode; // Код страны
+        const response = await axios.get('http://ip-api.com/json');
+        const countryCode = response.data.countryCode;
         const country = countries.find((c) => c.value === countryCode);
         if (country) {
           setDefaultCountry(country);
-          form.setValue('countryCode', countryCode); // Установить значение по умолчанию
+          form.setValue('countryCode', countryCode);
         }
       } catch (err) {
         console.error('Failed to fetch user country:', err);
@@ -141,7 +140,7 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-100 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
     <Card className="w-[400px] shadow-xl bg-white rounded-lg">
       <CardHeader className="space-y-1 pb-4">
         <h2 className="text-2xl font-bold text-center text-blue-600">Create Account</h2>
@@ -219,10 +218,10 @@ const Register = () => {
                       <Select
                         options={countries}
                         placeholder="Select your country"
-                        value={defaultCountry} // Установить значение по умолчанию
+                        value={defaultCountry}
                         onChange={(selectedOption) => {
                           field.onChange(selectedOption?.value || '');
-                          setDefaultCountry(selectedOption || null); // Обновить выбранную страну
+                          setDefaultCountry(selectedOption || null);
                         }}
                         getOptionLabel={(e) => (
                           <div className="flex items-center">

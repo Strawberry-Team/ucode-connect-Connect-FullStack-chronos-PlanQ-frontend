@@ -56,15 +56,15 @@ const Login = () => {
                 // Также используем сообщение из ответа или показываем стандартное сообщение
                 setError(err.response?.data?.message || 'Please verify your email.');
             }
-
         } finally {
             setIsLoading(false);
         }
     };
 
+
     return (
         <div
-            className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 py-12 px-4 sm:px-6 lg:px-8">
+            className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-100 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
             <div className="mb-8 text-center">
                 <h1 className="text-4xl font-bold text-blue-600 mb-2">PlanQ</h1>
                 <div className="h-1 w-12 bg-blue-600 mx-auto rounded-full"></div>
