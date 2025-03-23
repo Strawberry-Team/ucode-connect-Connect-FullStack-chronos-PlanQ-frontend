@@ -46,6 +46,13 @@ function Header() {
                 <div className="flex justify-between items-center h-16 lg:h-20">
                     {/* Название проекта */}
                     <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+                    <div className="relative h-10 w-10 lg:h-12 lg:w-12">
+                             <img
+                                 src="/logo.png"
+                                 alt="Logo"
+                                 className="h-full w-full object-contain"
+                             />
+                         </div>
                         <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-700 to-blue-700 bg-clip-text text-transparent">
                             PlanQ
                         </h1>

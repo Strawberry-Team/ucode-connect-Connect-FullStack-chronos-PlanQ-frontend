@@ -5,7 +5,7 @@ const Footer: React.FC = () => {
         <footer className="w-full bg-gradient-to-br from-gray-100 to-gray-200 border-t border-gray-300">
             <div className="px-4 py-4">
                 <p className="text-center text-sm text-gray-500">
-                    © {new Date().getFullYear()} Solve Stack. Developed by Denys KOLESNYCHENKO, Anton LUKASH, Maksym HRYTSENKO, CS-222a, SEMIT,
+                    © {new Date().getFullYear()} PlanQ. Developed by Denys KOLESNYCHENKO, Anton LUKASH, Maksym HRYTSENKO, CS-222a, SEMIT,
                     CSIT, NTU "KhPI", Innovation Campus.
                 </p>
             </div>

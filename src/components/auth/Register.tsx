@@ -20,13 +20,14 @@ const registerSchema = z
   .object({
     firstName: z
       .string()
-      .min(1, 'First name is required')
-      .max(50, 'First name must not exceed 50 characters')
-      .regex(/^[A-Za-z]+$/, 'First name must contain only English letters'), // Только английские буквы
+      .min(3, 'First name is required')
+      .max(100, 'First name must not exceed 100 characters')
+      .regex(/^(?!-)[A-Za-z]+(?:-[A-Za-z]+)*$/, 'First name must contain only English letters and may contain hyphen (-)'),
+ // Только английские буквы
     lastName: z
       .string()
-      .max(50, 'Last name must not exceed 50 characters')
-      .regex(/^[A-Za-z]*$/, 'Last name must contain only English letters') // Только английские буквы (или пустое)
+      .max(100, 'Last name must not exceed 100 characters')
+      .regex(/^(?!-)[A-Za-z]+(?:-[A-Za-z]+)*$/, 'Last name must contain only English letters and may contain hyphen (-)') // Только английские буквы (или пустое)
       .optional(),
     countryCode: z.string().min(1, 'Country is required'),
     email: z
@@ -141,6 +142,11 @@ const Register = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-100 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="mb-6 text-center">
+        
+        <h1 className="text-4xl font-bold text-blue-600 mb-2">PlanQ</h1>
+        <div className="h-1 w-12 bg-blue-600 mx-auto rounded-full"></div>
+      </div>
     <Card className="w-[400px] shadow-xl bg-white rounded-lg">
       <CardHeader className="space-y-1 pb-4">
         <h2 className="text-2xl font-bold text-center text-blue-600">Create Account</h2>

@@ -14,6 +14,7 @@ import ConfirmEmail from '@/components/auth/ConfirmEmail.tsx';
 import ScrollToTop from '@/components/ScrollToTop.tsx';
 import Footer from '@/components/Footer.tsx';
 import CalendarPage from './components/CalendarPage';
+import ConfirmCalendar from './components/ConfirmCalendar';
 import React, {useEffect, useState} from 'react';
 import './App.css';
 import csrfService from "@/services/csrfService.ts";
@@ -32,15 +33,15 @@ function App() {
     isLoggedIn: true,
   });
 
-  useEffect(() => {
-    // Получаем CSRF токен и настраиваем axios при монтировании компонента
-    const initCsrf = async () => {
-      await csrfService.fetchCsrfToken();
-      csrfService.setupAxiosInterceptors();
-    };
+  // useEffect(() => {
+  //   // Получаем CSRF токен и настраиваем axios при монтировании компонента
+  //   const initCsrf = async () => {
+  //     await csrfService.fetchCsrfToken();
+  //     csrfService.setupAxiosInterceptors();
+  //   };
 
-    initCsrf();
-  }, []);
+  //   initCsrf();
+  // }, []);
 
   return (
     <Provider store={store}>
@@ -60,8 +61,9 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/reset-password/:token" element={<ConfirmNewPassword />} />
-              <Route path="/confirm-email/:token" element={<ConfirmEmail />} />
+              <Route path="/auth/reset-password/:token" element={<ConfirmNewPassword />} />
+              <Route path="auth/confirm-email/:token" element={<ConfirmEmail />} />
+              <Route path="calendars/confirm-calendar/:token" element={<ConfirmCalendar />} />
               <Route
                 path="/profile"
                 element={

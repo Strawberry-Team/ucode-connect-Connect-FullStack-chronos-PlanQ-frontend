@@ -7,6 +7,7 @@ import {Button} from '../ui/button'
 import {Card, CardContent, CardHeader} from '../ui/card'
 import {Alert, AlertDescription} from '../ui/alert'
 import {CheckCircle2, XCircle, Loader2, ArrowRight} from 'lucide-react'
+import csrfService from "@/services/csrfService.ts";
 
 function ConfirmEmail() {
     const [message, setMessage] = useState('')
@@ -34,21 +35,31 @@ function ConfirmEmail() {
         verify()
     }, [dispatch, token])
 
+    // useEffect(() => {
+    //     // Получаем CSRF токен и настраиваем axios при монтировании компонента
+    //     const initCsrf = async () => {
+    //       await csrfService.fetchCsrfToken();
+    //       csrfService.setupAxiosInterceptors();
+    //     };
+    
+    //     initCsrf();
+    //   }, []);
+
     const handleConfirm = () => {
         navigate('/login')
     }
 
     return (
         <div
-            className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="mb-8 text-center">
-                <h1 className="text-4xl font-bold text-primary mb-2">Solve Stack</h1>
+            className="min-h-screen flex flex-col items-center justify-start bg-gray-100 pt-12 px-4 sm:px-6 lg:px-8">
+            <div className="mb-6 text-center">
+                <h1 className="text-4xl font-bold text-primary mb-2">PlanQ</h1>
                 <div className="h-1 w-12 bg-primary mx-auto rounded-full"></div>
             </div>
 
             <Card className="w-[400px] shadow-xl bg-background/80 backdrop-blur-sm">
                 <CardHeader className="space-y-1 pb-4">
-                    <h2 className="text-2xl font-bold text-center text-foreground">
+                    <h2 className="text-2xl font-bold text-center  text-blue-700">
                         Email Verification
                     </h2>
                     <p className="text-sm text-muted-foreground text-center">

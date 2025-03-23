@@ -108,17 +108,17 @@ const authService = {
   },
 
   verifyEmail: async (token: string) => {
-    const response = await axios.get(`${API_URL}/verify-email/${token}`);
+    const response = await axios.post(`${API_URL}/confirm-email/${token}`);
     return response.data;
   },
 
   sendPasswordResetLink: async (email: string) => {
-    const response = await axios.post(`${API_URL}/password-reset`, { email });
+    const response = await axios.post(`${API_URL}/reset-password`, { email });
     return response.data;
   },
 
   resetPassword: async (token: string, newPassword: string) => {
-    const response = await axios.post(`${API_URL}/password-reset/${token}`, { newPassword });
+    const response = await axios.post(`${API_URL}/reset-password/${token}`, { newPassword });
     return response.data;
   },
 };
