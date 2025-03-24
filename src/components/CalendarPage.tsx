@@ -70,6 +70,7 @@ const CalendarPage: React.FC = () => {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editedRole, setEditedRole] = useState<"owner" | "editor" | "viewer">("viewer");
 
+  
   // Close all modals
   const closeModal = () => {
     setModalData({ type: null });
@@ -102,6 +103,10 @@ const CalendarPage: React.FC = () => {
     const fetchHolidays = async () => {
       try {
         const data: any[] = await calendarService.getHolidays();
+        // Find the holiday calendar to get its color
+        const holidayCalendar = calendars.find(cal => cal.calendarType === "holiday");
+        const holidayColor = holidayCalendar?.color || "#FF7043"; // Use #FF7043 (orange) as default if not found
+        
         const transformedHolidays: CalendarEvent[] = data.map((holiday) => {
           let startStr: string = holiday.startedAt;
           if (startStr && !startStr.includes("T")) {
@@ -113,7 +118,7 @@ const CalendarPage: React.FC = () => {
             start: startStr,
             calendarId: "holiday",
             type: "holiday",
-            color: "#FF7043",
+            color: holidayColor, // Add the color property
           };
         });
         
@@ -123,7 +128,8 @@ const CalendarPage: React.FC = () => {
       }
     };
     fetchHolidays();
-  }, []);
+  }, [calendars]); // Add calendars as a dependency to re-run when calendars are loaded
+  
 
   const formattedCalendars: CalendarData[] = useMemo(() => {
     return calendars.map((item: any) => ({

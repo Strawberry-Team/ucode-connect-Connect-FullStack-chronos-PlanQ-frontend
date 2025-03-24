@@ -30,6 +30,7 @@ export interface CalendarData {
   description: string;
   isVisible: boolean;
   color: string;
+  calendarType: string;
   events?: CalendarEvent[];
 }
 
@@ -352,34 +353,50 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
             )}
           </div>
           {dayEvents.length > 0 && (
-            <div className="mt-2 space-y-1.5 overflow-hidden">
-              {dayEvents.slice(0, 3).map((event) => {
-                const eventType = event.type;
-                const typeIcon = eventType === 'meeting' ? '🗓️' : 
-                                 eventType === 'task' ? '✓' : 
-                                 eventType === 'holiday' ? '🏖️' : '⏰';
-                                 
-                return (
-                  <div
-                    key={event.id}
-                    className="flex items-center text-xs px-2 py-1 rounded-md"
-                    style={{ 
-                      backgroundColor: `${event.color}20`,
-                      borderLeft: `3px solid ${event.color}` 
-                    }}
-                  >
-                    <span className="text-xs mr-1">{typeIcon}</span>
-                    <span className="truncate text-slate-700">{event.title}</span>
-                  </div>
-                );
-              })}
-              {dayEvents.length > 3 && (
-                <div className="text-xs text-slate-500 italic pl-2">
-                  +{dayEvents.length - 3} more
-                </div>
-              )}
-            </div>
-          )}
+  <div className="mt-2 space-y-1.5 overflow-hidden">
+    {dayEvents.slice(0, 3).map((event) => {
+      // Find the calendar for this event
+      const calendar = calendars.find(
+        (cal) => cal.id === event.calendarId
+      ) || { color: event.color };
+      
+      // Get the calendar color
+      const calendarColor = calendar.color;
+      
+      // Get the event color (use event color if specified, otherwise use calendar color)
+      const eventBgColor = 
+        event.color && event.color.trim() !== ""
+          ? event.color
+          : calendarColor;
+      
+      // Determine event type icon
+      const eventType = event.type;
+      const typeIcon = eventType === 'meeting' ? '🗓️' : 
+                       eventType === 'task' ? '✓' : 
+                       eventType === 'holiday' ? '🏖️' : '⏰';
+                       
+      return (
+        <div
+          key={event.id}
+          className="flex items-center text-xs px-2 py-1 rounded-md"
+          style={{ 
+            backgroundColor: `${eventBgColor}15`,
+            borderLeft: `4px solid ${calendarColor}` 
+          }}
+        >
+          <span className="text-xs mr-1">{typeIcon}</span>
+          <span className="truncate text-slate-700">{event.title}</span>
+        </div>
+      );
+    })}
+    {dayEvents.length > 3 && (
+      <div className="text-xs text-slate-500 italic pl-2">
+        +{dayEvents.length - 3} more
+      </div>
+    )}
+  </div>
+)}
+
         </div>
       );
       day = addDays(day, 1);
@@ -459,6 +476,7 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
                     }}
                     title={event.title}
                   >
+                    <span className="mr-1">🏖️</span>
                     {event.title}
                   </div>
                 ))}
@@ -560,7 +578,7 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
                         marginLeft: "2px",
                         padding: "4px",
                         backgroundColor: `${eventBgColor}15`,
-                        borderLeft: `4px solid ${eventBgColor}`,
+                        borderLeft: `4px solid ${calendarColor}`,
                       }}
                       className="text-xs rounded-md shadow-sm overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-md group"
                       title={layout.event.title}
@@ -718,7 +736,7 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
                     marginLeft: "5px",
                     padding: "6px 8px",
                     backgroundColor: `${eventBgColor}15`,
-                    borderLeft: `4px solid ${eventBgColor}`,
+                    borderLeft: `4px solid ${calendarColor}`,
                   }}
                   className="rounded-md shadow-sm overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-md group"
                   title={layout.event.title}
