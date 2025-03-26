@@ -15,6 +15,8 @@ import ScrollToTop from '@/components/ScrollToTop.tsx';
 import Footer from '@/components/Footer.tsx';
 import CalendarPage from './components/CalendarPage';
 import ConfirmCalendar from './components/ConfirmCalendar';
+import EventCreatePage from "./components/EventCreatePage";
+import ConfirmEventParticipation from "./components/ConfirmEventParticipation";
 import React, {useEffect, useState} from 'react';
 import './App.css';
 import csrfService from "@/services/csrfService.ts";
@@ -64,6 +66,8 @@ function App() {
               <Route path="/auth/reset-password/:token" element={<ConfirmNewPassword />} />
               <Route path="auth/confirm-email/:token" element={<ConfirmEmail />} />
               <Route path="calendars/confirm-calendar/:token" element={<ConfirmCalendar />} />
+              <Route path="/calendar/create-event" element={<EventCreatePage />} />
+              <Route path="/events/:eventId/calendar-members/:calendarMemberId/confirm-participation/:token" element={<ConfirmEventParticipation />} />
               <Route
                 path="/profile"
                 element={

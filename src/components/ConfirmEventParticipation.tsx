@@ -1,32 +1,37 @@
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useParams, useNavigate } from "react-router-dom";
-import { AppDispatch } from "./../store";
-import { confirmCalendar } from "./../actions/calendarActions"; // новый экшен для подтверждения календаря
+import { AppDispatch } from "../store";
+import { confirmEventParticipation } from "../actions/eventActions"; // Используем новый action
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Alert, AlertDescription } from "./ui/alert";
 import { CheckCircle2, XCircle, Loader2, ArrowRight } from "lucide-react";
 
-function ConfirmCalendar() {
+function ConfirmEventParticipation() {
   const [message, setMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { token } = useParams<{ token: string }>();
+  const { eventId, calendarMemberId, token } = useParams<{ 
+    eventId: string;
+    calendarMemberId: string;
+    token: string 
+  }>();
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
   useEffect(() => {
     const confirm = async () => {
       try {
-        if (token) {
-          await dispatch(confirmCalendar(token));
-          setMessage("You have successfully joined the calendar!");
+        if (token && eventId && calendarMemberId) {
+          await dispatch(confirmEventParticipation(eventId, calendarMemberId, token));
+          setMessage("You have successfully confirmed your participation in the event!");
           setIsSuccess(true);
         }
       } catch (err: any) {
         setMessage(
-          "An error occurred during calendar confirmation. Please try again or contact support."
+          err.response?.data?.message || 
+          "An error occurred during event participation confirmation. Please try again or contact support."
         );
         setIsSuccess(false);
       } finally {
@@ -34,10 +39,10 @@ function ConfirmCalendar() {
       }
     };
     confirm();
-  }, [dispatch, token]);
+  }, [dispatch, eventId, calendarMemberId, token]);
 
   const handleConfirm = () => {
-    navigate("/"); // Направляем пользователя на страницу с календарями
+    navigate("/calendars"); // Направляем пользователя на страницу с календарями
   };
 
   return (
@@ -50,11 +55,11 @@ function ConfirmCalendar() {
       <Card className="w-[400px] shadow-xl bg-background/80 backdrop-blur-sm">
         <CardHeader className="space-y-1 pb-4">
           <h2 className="text-2xl font-bold text-center text-blue-700">
-            Calendar Confirmation
+            Event Participation Confirmation
           </h2>
           <p className="text-sm text-muted-foreground text-center">
             {isLoading
-              ? "Confirming your calendar membership..."
+              ? "Confirming your event participation..."
               : "Confirmation status"}
           </p>
         </CardHeader>
@@ -104,4 +109,4 @@ function ConfirmCalendar() {
   );
 }
 
-export default ConfirmCalendar;
+export default ConfirmEventParticipation;

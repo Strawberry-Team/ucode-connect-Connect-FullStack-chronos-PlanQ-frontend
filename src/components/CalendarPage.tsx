@@ -15,6 +15,7 @@ import {
   addCalendarUser,
   getHolidays,
 } from "../actions/calendarActions";
+import { getCalendarEvents } from "../actions/eventActions";
 import calendarService from "../services/calendarService";
 import Alert from "./Alert";
 import Sidebar from "./Sidebar";
@@ -42,11 +43,20 @@ const CalendarPage: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sharedCalendarId, setSharedCalendarId] = useState<string>("");
   const [sharedUsers, setSharedUsers] = useState<any[]>([]);
+  
+  // Calendar data from Redux
   const { calendars, loading, error } = useSelector(
     (state: RootState) => state.calendar
   ) || { calendars: [], loading: false, error: null };
+  
+  // Events data from Redux
+  const { events: reduxEvents } = useSelector(
+    (state: RootState) => state.event
+  ) || { events: [] };
+  
   const [holidayEvents, setHolidayEvents] = useState<CalendarEvent[]>([]);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [calendarEventsMap, setCalendarEventsMap] = useState<Record<string, any[]>>({});
   
   // Modal state
   const [modalData, setModalData] = useState<ModalData>({ type: null });
@@ -70,42 +80,52 @@ const CalendarPage: React.FC = () => {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editedRole, setEditedRole] = useState<"owner" | "editor" | "viewer">("viewer");
 
-  
-  // Close all modals
-  const closeModal = () => {
-    setModalData({ type: null });
-  };
-
-  // Open modal with specific type and data
-  const openModal = (data: ModalData) => {
-    setModalData(data);
-    
-    // Initialize form values based on modal type
-    if (data.type === 'edit' && data.calendarTitle && data.calendarDescription) {
-      setEditTitle(data.calendarTitle);
-      setEditDescription(data.calendarDescription || "");
-    } else if (data.type === 'color' && data.calendarColor) {
-      setCustomColor(data.calendarColor);
-    } else if (data.type === 'share' && data.calendarId) {
-      setSharedCalendarId(String(data.calendarId));
-
-      fetchSharedUsers(data.calendarId);
-    }
-  };
-
+  // First effect to fetch user calendars
   useEffect(() => {
     if (authUser && authUser.id) {
       dispatch(getUserCalendars(String(authUser.id)));
     }
   }, [dispatch, authUser]);
 
+  // New effect to fetch events for all calendars
+  useEffect(() => {
+    const fetchEventsForCalendars = async () => {
+      if (authUser && authUser.id && calendars.length > 0) {
+        const eventsMap: Record<string, any[]> = {};
+        
+        for (const cal of calendars) {
+          // Skip holiday calendars as they're handled separately
+          if (cal.calendarType !== "holiday" && cal.calendarId) {
+            try {
+              console.log(`Fetching events for calendar ${cal.calendarId}`);
+              const calendarEvents = await dispatch(getCalendarEvents(cal.calendarId, authUser.id));
+              console.log(`Received events for calendar ${cal.calendarId}:`, calendarEvents);
+              
+              // Store events by calendar ID
+              eventsMap[cal.calendarId] = calendarEvents;
+            } catch (error) {
+              console.error(`Failed to fetch events for calendar ${cal.calendarId}:`, error);
+            }
+          }
+        }
+        
+        setCalendarEventsMap(eventsMap);
+      }
+    };
+    
+    if (calendars.length > 0 && authUser?.id) {
+      fetchEventsForCalendars();
+    }
+  }, [calendars, authUser, dispatch]);
+
+  // Holiday fetching effect remains the same
   useEffect(() => {
     const fetchHolidays = async () => {
       try {
         const data: any[] = await calendarService.getHolidays();
         // Find the holiday calendar to get its color
         const holidayCalendar = calendars.find(cal => cal.calendarType === "holiday");
-        const holidayColor = holidayCalendar?.color || "#FF7043"; // Use #FF7043 (orange) as default if not found
+        const holidayColor = holidayCalendar?.color || "#FF7043";
         
         const transformedHolidays: CalendarEvent[] = data.map((holiday) => {
           let startStr: string = holiday.startedAt;
@@ -118,7 +138,7 @@ const CalendarPage: React.FC = () => {
             start: startStr,
             calendarId: "holiday",
             type: "holiday",
-            color: holidayColor, // Add the color property
+            color: holidayColor, 
           };
         });
         
@@ -128,30 +148,132 @@ const CalendarPage: React.FC = () => {
       }
     };
     fetchHolidays();
-  }, [calendars]); // Add calendars as a dependency to re-run when calendars are loaded
-  
+  }, [calendars]);
 
+  // Updated formattedCalendars function to properly transform API events
   const formattedCalendars: CalendarData[] = useMemo(() => {
-    return calendars.map((item: any) => ({
-      id: String(item.calendarId || item.id), // Явно преобразуем в строку
-      title: item.calendar?.name || "Untitled",
-      description: item.calendar?.description || "",
-      isVisible: item.isVisible !== undefined ? item.isVisible : true,
-      color: item.color || "#10b981",
-      events: item.calendarType === "holiday" ? holidayEvents : item.events || [],
-      isMain: item.isMain || (item.calendar && item.isMain) || false,
-      creatorId: item.calendar?.creatorId ? String(item.calendar.creatorId) : undefined,
-      calendarType: item.calendarType,
-      createdAt: item.calendar?.createdAt,
-      role: item.role,
-    }));
-  }, [calendars, holidayEvents]);
+    console.log("Formatting calendars with events:", calendarEventsMap);
+    
+    return calendars.map((item: any) => {
+      let calendarEvents: CalendarEvent[] = [];
+      const calId = item.calendarId || item.id;
+      
+      if (item.calendarType === "holiday") {
+        // Holidays are already properly formatted
+        calendarEvents = holidayEvents;
+      } else if (calendarEventsMap[calId] && Array.isArray(calendarEventsMap[calId])) {
+        // Process regular events from our events map
+        calendarEvents = calendarEventsMap[calId].map((participation: any) => {
+          const event = participation.event;
+          if (!event) return null;
+          
+          // The start and end times are stored in UTC, we keep them as is
+          // The date-fns functions and date constructors will handle local time display
+          return {
+            id: String(event.id),
+            title: event.name,
+            start: event.startedAt,  // Keep UTC string, conversion happens during display
+            end: event.endedAt,      // Keep UTC string, conversion happens during display
+            description: event.description,
+            calendarId: String(calId),
+            type: event.type,
+            color: participation.color || item.color,
+            category: event.category,
+            priority: event.task?.priority,
+            isCompleted: event.task?.isCompleted,
+            creatorId: event.creatorId,
+            participations: [participation] // Store the original participation data
+          };
+        }).filter(Boolean); // Remove null entries
+      }
+      
+      return {
+        id: String(calId),
+        title: item.calendar?.name || "Untitled",
+        description: item.calendar?.description || "",
+        isVisible: item.isVisible !== undefined ? item.isVisible : true,
+        color: item.color || "#10b981",
+        events: calendarEvents,
+        isMain: item.isMain || (item.calendar && item.isMain) || false,
+        creatorId: item.calendar?.creatorId ? String(item.calendar.creatorId) : undefined,
+        calendarType: item.calendarType,
+        createdAt: item.calendar?.createdAt,
+        role: item.role,
+      };
+    });
+  }, [calendars, holidayEvents, calendarEventsMap]);
+
+  // Calculate all events (including visible events from all calendars)
+  const allEvents: CalendarEvent[] = useMemo(() => {
+    // Создаем Set для отслеживания уже добавленных id событий
+    const addedEventIds = new Set<string>();
+    const result: CalendarEvent[] = [];
+    
+    // Сначала обрабатываем события из общих (additional) календарей
+    const additionalCalendars = formattedCalendars
+      .filter(cal => 
+        cal.isVisible && 
+        cal.events && 
+        cal.events.length > 0 && 
+        cal.calendarType !== 'main'
+      );
+      
+    // Добавляем события из additional календарей
+    for (const cal of additionalCalendars) {
+      for (const event of cal.events || []) {
+        if (event && event.id) {
+          addedEventIds.add(event.id);
+          result.push(event);
+        }
+      }
+    }
+    
+    // Затем обрабатываем события из основных (main) календарей
+    const mainCalendars = formattedCalendars
+      .filter(cal => 
+        cal.isVisible && 
+        cal.events && 
+        cal.events.length > 0 && 
+        cal.calendarType === 'main'
+      );
+      
+    // Добавляем только те события из main календарей, которые еще не были добавлены
+    for (const cal of mainCalendars) {
+      for (const event of cal.events || []) {
+        // Проверяем, не было ли это событие уже добавлено
+        if (event && event.id && !addedEventIds.has(event.id)) {
+          result.push(event);
+        }
+      }
+    }
+    
+    return result;
+  }, [formattedCalendars]);
   
+  console.log("All events to display:", allEvents.length);
 
-  const allEvents: CalendarEvent[] = formattedCalendars
-    .filter((cal) => cal.isVisible && cal.events && cal.events.length > 0)
-    .flatMap((cal) => cal.events || []);
+  // Close modal function
+  const closeModal = () => {
+    setModalData({ type: null });
+  };
 
+  // Open modal function
+  const openModal = (data: ModalData) => {
+    setModalData(data);
+    
+    // Initialize form values based on modal type
+    if (data.type === 'edit' && data.calendarTitle && data.calendarDescription) {
+      setEditTitle(data.calendarTitle);
+      setEditDescription(data.calendarDescription || "");
+    } else if (data.type === 'color' && data.calendarColor) {
+      setCustomColor(data.calendarColor);
+    } else if (data.type === 'share' && data.calendarId) {
+      setSharedCalendarId(String(data.calendarId));
+      fetchSharedUsers(data.calendarId);
+    }
+  };
+
+  // Handle calendar visibility toggle
   const handleToggleCalendar = (id: string) => {
     const calendar = formattedCalendars.find((cal) => cal.id === id);
     if (!calendar || !authUser || !authUser.id) return;
@@ -160,21 +282,22 @@ const CalendarPage: React.FC = () => {
     );
   };
 
+  // Add new calendar
   const handleAddCalendar = () => { 
     try {
       if (authUser && authUser.id) {
         const trimmedName = newCalendarTitle.trim();
-    if (trimmedName.length < 3 || trimmedName.length > 100) {
-      setAlertMessage("Name must be between 3 and 100 characters");
-      return;
-    }
+        if (trimmedName.length < 3 || trimmedName.length > 100) {
+          setAlertMessage("Name must be between 3 and 100 characters");
+          return;
+        }
 
-    // Проверяем, что описание не длиннее 255 символов
-    const trimmedDescription = newCalendarDescription.trim();
-    if (trimmedDescription.length > 255) {
-      setAlertMessage("Description cannot exceed 255 characters");
-      return;
-    }
+        // Проверяем, что описание не длиннее 255 символов
+        const trimmedDescription = newCalendarDescription.trim();
+        if (trimmedDescription.length > 255) {
+          setAlertMessage("Description cannot exceed 255 characters");
+          return;
+        }
         
         const newCalendar = {
           name: trimmedName,
@@ -197,6 +320,7 @@ const CalendarPage: React.FC = () => {
     }
   };
 
+  // Change calendar color
   const handleChangeColor = () => {
     try {
       if (!modalData.calendarId) return;
@@ -212,6 +336,7 @@ const CalendarPage: React.FC = () => {
     }
   };
 
+  // Delete calendar
   const handleDeleteCalendar = (calendarId: string, userId: string) => {
     console.log('deletIdCalendar', calendarId);
     dispatch(deleteCalendar(calendarId, userId));
@@ -219,6 +344,7 @@ const CalendarPage: React.FC = () => {
     closeModal();
   };
 
+  // Edit calendar
   const handleEditCalendar = () => { 
     try {
       if (!modalData.calendarId) return;
@@ -234,10 +360,63 @@ const CalendarPage: React.FC = () => {
     }
   };
 
-  const handleAddEvent = (newEvent: CalendarEvent) => {
-    console.log("Add new event:", newEvent);
+  // Add event handler (passed to CustomCalendar)
+  const handleAddEvent = async (newEvent: CalendarEvent & { deleted?: boolean }) => {
+    console.log("Event action:", newEvent.deleted ? "deletion" : "creation/update");
+    
+    // Handle both adding new events and deleting events
+    if (authUser && authUser.id && newEvent.calendarId) {
+      try {
+        const calendarId = newEvent.calendarId;
+        
+        if (newEvent.deleted) {
+          console.log(`Handling event deletion for event ID: ${newEvent.id}`);
+          
+          // Immediately update the UI by removing the deleted event 
+          // This happens before the API call to make the UI feel responsive
+          setCalendarEventsMap(prevMap => {
+            // Make a shallow copy of the previous state
+            const newMap = { ...prevMap };
+            
+            // If we have events for this calendar
+            if (newMap[calendarId]) {
+              // Filter out the deleted event
+              newMap[calendarId] = newMap[calendarId].filter(participation => 
+                participation.event && String(participation.event.id) !== String(newEvent.id)
+              );
+            }
+            
+            return newMap;
+          });
+          
+          // Then also fetch the updated list from the API (for consistency)
+          const updatedEvents = await dispatch(getCalendarEvents(calendarId, authUser.id));
+          console.log(`Updated events list after deletion:`, updatedEvents);
+          
+          // Update the state with the server response 
+          // (this makes sure our local state matches the server)
+          setCalendarEventsMap(prevMap => ({
+            ...prevMap,
+            [calendarId]: updatedEvents
+          }));
+        } else {
+          // For new events or updates, just fetch from the API
+          console.log(`Refreshing events for calendar ${calendarId}`);
+          const events = await dispatch(getCalendarEvents(calendarId, authUser.id));
+          
+          // Update the calendarEventsMap with the new events
+          setCalendarEventsMap(prevMap => ({
+            ...prevMap,
+            [calendarId]: events
+          }));
+        }
+      } catch (error) {
+        console.error("Error handling event action:", error);
+      }
+    }
   };
 
+  // Fetch users that have access to a calendar
   const fetchSharedUsers = async (calendarId: string) => {
     try {
       const data = await dispatch(getCalendarUsers(calendarId));
@@ -249,26 +428,27 @@ const CalendarPage: React.FC = () => {
     }
   };
 
+  // Add user to calendar
   const handleAddSharedUser = async () => {
     if (!sharedUserEmail.trim() || !sharedCalendarId) return;
   
     try {
-      //setIsSharedLoading(true);
+      setIsSharedLoading(true);
       const payload = { userEmail: sharedUserEmail, role: sharedRole };
       const result = await dispatch(addCalendarUser(sharedCalendarId, payload));
       
       if (result && result.error) {
-        // Если вернулся объект error, отображаем алерт с текстом ошибки
+        // If error object returned, show alert with error message
         setAlertMessage("Failed to add user: " + result.error);
       } else {
         setAlertMessage("User added successfully");
         fetchSharedUsers(sharedCalendarId);
-        // Сброс формы:
+        // Reset form
         setSharedUserEmail("");
         setSharedRole("viewer");
       }
     } catch (error) {
-      // Этот блок теперь маловероятно сработает, но оставляем его для безопасности
+      // This block is unlikely to execute, but kept for safety
       setAlertMessage("Failed to add user");
       console.error("Error adding user:", error);
     } finally {
@@ -276,8 +456,7 @@ const CalendarPage: React.FC = () => {
     }
   };
   
-  
-
+  // Save user role change
   const handleUserRoleSave = async (userId: string) => {
     if (!sharedCalendarId) return;
     try {
@@ -292,6 +471,7 @@ const CalendarPage: React.FC = () => {
     }
   };
 
+  // Remove user from calendar
   const handleRemoveUser = async (userId: string) => {
     if (!sharedCalendarId) return;
     try {
@@ -305,6 +485,7 @@ const CalendarPage: React.FC = () => {
     }
   };
 
+  // Leave calendar
   const handleLeaveCalendar = async (calendarId: string) => {
     if (!authUser || !authUser.id) return;
     try {
@@ -323,11 +504,7 @@ const CalendarPage: React.FC = () => {
       (cal: CalendarData) => String(cal.id) === String(sharedCalendarId)
     );
   }, [formattedCalendars, sharedCalendarId]);
-  
 
-  console.log('currentcalendar',currentCalendar);
-  console.log('formattedCalendars',formattedCalendars);
-  console.log('sharedCalendarId',sharedCalendarId);
   // Render modal content
   const renderModalContent = () => {
     switch (modalData.type) {
@@ -763,92 +940,83 @@ const CalendarPage: React.FC = () => {
     }
   };
 
+  // Loading state
   if (loading) return (
     <div className="flex items-center justify-center h-screen bg-gray-50">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
     </div>
   );
-  
-  // if (error) return (
-  //   <div className="flex items-center justify-center h-screen bg-gray-50">
-  //     <div className="p-6 bg-white rounded-lg shadow-lg text-red-500">
-  //       <h2 className="text-xl font-bold mb-2">Error</h2>
-  //       <p>{error}</p>
-  //     </div>
-  //   </div>
-  // );
 
   return (
     <div className="h-screen flex flex-col">
-  <div className="flex flex-1 overflow-hidden">
-    {/* Mobile sidebar toggle */}
-    <button 
-      className="fixed bottom-4 right-4 z-50 md:hidden bg-indigo-600 text-white p-3 rounded-full shadow-lg"
-      onClick={() => setSidebarOpen(!sidebarOpen)}
-    >
-      {sidebarOpen ? <X /> : <CalendarClock />}
-    </button>
-    
-    {/* Redesigned Sidebar - now taking full left side */}
-    <div className={`
-      transition-all duration-300 ease-in-out
-      md:relative md:block 
-      ${sidebarOpen ? "fixed inset-y-0 left-0 w-72 z-40 shadow-xl md:shadow-none" : "hidden"}
-      md:z-auto md:translate-x-0 bg-white border-r border-gray-200 md:w-72 lg:w-80 xl:w-80
-    `}>
-      <div className="h-full flex flex-col overflow-hidden">
-        {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-200 bg-white">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center">
-            <CalendarClock className="mr-2 text-indigo-600" size={20} />
-              <span>Calendars</span>
-            </h2>
-            <button 
-              className="bg-indigo-600 text-white p-1.5 rounded-md hover:bg-indigo-700 transition-colors flex items-center text-sm"
-              onClick={() => openModal({ type: 'create' })}
-            >
-              <Plus size={16} className="mr-1" />
-              <span>New</span>
-            </button>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Mobile sidebar toggle */}
+        <button 
+          className="fixed bottom-4 right-4 z-50 md:hidden bg-indigo-600 text-white p-3 rounded-full shadow-lg"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+        >
+          {sidebarOpen ? <X /> : <CalendarClock />}
+        </button>
+        
+        {/* Redesigned Sidebar - now taking full left side */}
+        <div className={`
+          transition-all duration-300 ease-in-out
+          md:relative md:block 
+          ${sidebarOpen ? "fixed inset-y-0 left-0 w-72 z-40 shadow-xl md:shadow-none" : "hidden"}
+          md:z-auto md:translate-x-0 bg-white border-r border-gray-200 md:w-72 lg:w-80 xl:w-80
+        `}>
+          <div className="h-full flex flex-col overflow-hidden">
+            {/* Sidebar Header */}
+            <div className="p-4 border-b border-gray-200 bg-white">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <CalendarClock className="mr-2 text-indigo-600" size={20} />
+                  <span>Calendars</span>
+                </h2>
+                <button 
+                  className="bg-indigo-600 text-white p-1.5 rounded-md hover:bg-indigo-700 transition-colors flex items-center text-sm"
+                  onClick={() => openModal({ type: 'create' })}
+                >
+                  <Plus size={16} className="mr-1" />
+                  <span>New</span>
+                </button>
+              </div>
+            </div>
+            
+            {/* Sidebar Content */}
+            <div className="flex-1 overflow-y-auto p-4 bg-white">
+              <Sidebar
+                calendars={formattedCalendars}
+                onToggleCalendar={handleToggleCalendar}
+                onDeleteCalendar={(id) => openModal({ type: 'delete', calendarId: id })}
+                openModal={openModal}
+                authUser={authUser}
+                handleLeaveCalendar={handleLeaveCalendar}
+              />
+            </div>
           </div>
         </div>
         
-        {/* Sidebar Content */}
-        <div className="flex-1 overflow-y-auto p-4 bg-white">
-          <Sidebar
-            calendars={formattedCalendars}
-            onToggleCalendar={handleToggleCalendar}
-            onDeleteCalendar={(id) => openModal({ type: 'delete', calendarId: id })}
-            openModal={openModal}
-            authUser={authUser}
-            handleLeaveCalendar={handleLeaveCalendar}
-          />
+        {/* Main content area */}
+        <div className="flex-1 overflow-auto bg-white border-l border-gray-200">
+          <div className="p-4 md:p-6">
+            <CustomCalendar
+              events={allEvents}
+              calendars={formattedCalendars}
+              onAddEvent={handleAddEvent}
+            />
+          </div>
         </div>
       </div>
+      
+      {/* Alert component */}
+      {alertMessage && (
+        <Alert message={alertMessage} onClose={() => setAlertMessage(null)} />
+      )}
+      
+      {/* Render modals at the root level */}
+      {renderModalContent()}
     </div>
-    
-    {/* Main content area */}
-    <div className="flex-1 overflow-auto bg-white border-l border-gray-200">
-      <div className="p-4 md:p-6">
-        <CustomCalendar
-          events={allEvents}
-          calendars={formattedCalendars}
-          onAddEvent={handleAddEvent}
-        />
-      </div>
-    </div>
-  </div>
-  
-  {/* Alert component */}
-  {alertMessage && (
-    <Alert message={alertMessage} onClose={() => setAlertMessage(null)} />
-  )}
-  
-  {/* Render modals at the root level */}
-  {renderModalContent()}
-</div>
-
   );
 };
 
