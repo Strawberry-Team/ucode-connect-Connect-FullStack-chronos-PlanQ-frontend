@@ -9,6 +9,79 @@ const confirmEventParticipation = async (eventId: string, calendarMemberId: stri
   );
   return response.data;
 };
+interface SearchEventsParams {
+  startedAt?: string;
+  endedAt?: string;
+  name?: string;
+  after?: {
+    createdAt: string;
+    id: number;
+  };
+  limit?: number;
+}
+
+// Интерфейс для события из поиска
+export interface SearchEventResult {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  startedAt: string;
+  endedAt: string;
+  type: string;
+  createdAt: string;
+  updatedAt: string;
+  creatorId: number;
+  calendarMemberId: number;
+  calendarId: number;
+}
+
+// Интерфейс для результатов поиска
+export interface SearchEventsResult {
+  events: SearchEventResult[];
+  nextCursor: {
+    createdAt: string;
+    id: number;
+  } | null;
+  hasMore: boolean;
+  total: number;
+  after: {
+    createdAt: string;
+    id: number;
+  } | null;
+  limit: number;
+  remaining: number;
+}
+
+const searchEvents = async (userId: number, params: SearchEventsParams): Promise<SearchEventsResult> => {
+  // Формируем URL с параметрами
+  let url = `${API_URL}/users/${userId}/events?`;
+  
+  // Добавляем параметры поиска
+  if (params.startedAt) {
+    url += `startedAt=${encodeURIComponent(params.startedAt)}&`;
+  }
+  
+  if (params.endedAt) {
+    url += `endedAt=${encodeURIComponent(params.endedAt)}&`;
+  }
+  
+  if (params.name && params.name.length >= 3) {
+    url += `name=${encodeURIComponent(params.name)}&`;
+  }
+  
+  if (params.after) {
+    url += `after[createdAt]=${encodeURIComponent(params.after.createdAt)}&`;
+    url += `after[id]=${params.after.id}&`;
+  }
+  
+  if (params.limit) {
+    url += `limit=${params.limit}`;
+  }
+  
+  const response = await axios.get(url);
+  return response.data;
+};
 
 const eventService = {
   // Get all events for a calendar
@@ -69,6 +142,7 @@ const eventService = {
   },
 
   confirmEventParticipation,
+  searchEvents, 
   
 };
 

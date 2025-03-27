@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import Alert from "./Alert";
 import {
   format,
   startOfMonth,
@@ -84,6 +85,7 @@ interface CustomCalendarProps {
   events: CalendarEvent[];
   calendars: CalendarData[];
   onAddEvent: (event: CalendarEvent) => void;
+  setAlertMessage?: (message: string | null) => void;
 }
 const predefinedColors = [
   "#4285F4", "#DB4437", "#F4B400", "#0F9D58", 
@@ -217,7 +219,20 @@ const eventEnd = event.end
     };
   }).filter(Boolean) as any[];
 };
-
+const roundToNearestThirtyMinutes = (date: Date, roundDown: boolean = true): Date => {
+  const coeff = 1000 * 60 * 30; // 30 минут в миллисекундах
+  const result = new Date(date);
+  
+  if (roundDown) {
+    // Округление вниз (например, 12:10 -> 12:00)
+    result.setTime(Math.floor(result.getTime() / coeff) * coeff);
+  } else {
+    // Округление до ближайшего (например, 12:10 -> 12:00, 12:20 -> 12:30)
+    result.setTime(Math.round(result.getTime() / coeff) * coeff);
+  }
+  
+  return result;
+};
 /*
   Year View Component
 */
@@ -356,9 +371,11 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
   events,
   calendars,
   onAddEvent,
+  setAlertMessage
 }) => {
   const dispatch: AppDispatch = useDispatch();
   const authUser = useSelector((state: RootState) => state.auth.user);
+  //const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const { currentEvent, loading, error } = useSelector((state: RootState) => state.event);
   
   // Calendar view state
@@ -379,6 +396,21 @@ const [newParticipantEmail, setNewParticipantEmail] = useState("");
 const [isSearchingUser, setIsSearchingUser] = useState(false);
 const [activeTab, setActiveTab] = useState<'details' | 'participants'>('details');
 const navigate = useNavigate();
+
+const [holidayEvent, setHolidayEvent] = useState<CalendarEvent | null>(null);
+console.log('holiday zalypa', holidayEvent);
+const handleEventClick = (event: CalendarEvent) => {
+  // For holiday events
+  if (event.type === "holiday") {
+    // Store the holiday event in local state
+    setHolidayEvent(event);
+    setShowEventDetailModal(true);
+  } else {
+    // For regular events, use the existing flow
+    setSelectedEventId(parseInt(event.id));
+    setShowEventDetailModal(true);
+  }
+};
 // 2. Add this function to search for users by email
 const searchUserByEmail = async (email: string) => {
   if (!email.trim()) return null;
@@ -413,7 +445,9 @@ const addFormParticipant = async () => {
   const user = await searchUserByEmail(newParticipantEmail);
   console.log('tyt teper', user);
   if (!user) {
-    alert("No user found with this email");
+    if (setAlertMessage) {
+      setAlertMessage("User not found");
+    }
     return;
   }
   
@@ -485,6 +519,15 @@ const removeFormParticipant = (email: string) => {
     }
   }, [selectedEventId, dispatch]);
 
+  useEffect(() => {
+    // This effect handles cases where currentEvent is directly set
+    // (like for holiday events) rather than fetched via selectedEventId
+    if (currentEvent && currentEvent.type === "holiday") {
+      // No need to fetch from API - the event is already set
+      console.log("Holiday event selected directly:", currentEvent);
+    }
+  }, [currentEvent]);
+
   // Time grid settings
   const startHour = 0;
   const endHour = 24;
@@ -514,7 +557,7 @@ const removeFormParticipant = (email: string) => {
         </div>
       ))}
     </div>
-  );
+  ); 
 
   // Build month view
   while (day <= endDt) {
@@ -559,7 +602,7 @@ const removeFormParticipant = (email: string) => {
               {dayEvents.slice(0, 3).map((event) => {
                 const calendar = calendars.find(cal => cal.id === event.calendarId) || { color: event.color };
                 const eventBgColor = event.color && event.color.trim() !== "" ? event.color : calendar.color;
-                
+                const calendarColor = calendar?.color || "#3B82F6";
                 // Determine event type icon
                 let typeIcon;
                 switch(event.type) {
@@ -585,7 +628,7 @@ const removeFormParticipant = (email: string) => {
                     className="flex items-center text-xs px-2 py-1 rounded-md"
                     style={{ 
                       backgroundColor: `${eventBgColor}15`,
-                      borderLeft: `4px solid ${eventBgColor}` 
+                      borderLeft: `4px solid ${calendarColor}` 
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -679,20 +722,21 @@ const removeFormParticipant = (email: string) => {
                 style={{ height: allDayHeight }}
               >
                 {allDayEvents.map((event) => (
-                  <div
-                    key={event.id}
-                    className="text-xs rounded-md px-2 py-1 mb-1 truncate"
-                    style={{ 
-                      backgroundColor: `${event.color}20`,
-                      borderLeft: `3px solid ${event.color}`,
-                      color: '#333'
-                    }}
-                    title={event.title}
-                  >
-                    <span className="mr-1">🏖️</span>
-                    {event.title}
-                  </div>
-                ))}
+  <div
+    key={event.id}
+    className="text-xs rounded-md px-2 py-1 mb-1 truncate cursor-pointer hover:shadow-md transition-all"
+    style={{ 
+      backgroundColor: `${event.color}20`,
+      borderLeft: `3px solid ${event.color}`,
+      color: '#333'
+    }}
+    title={event.title}
+    onClick={() => handleEventClick(event)}
+  >
+    <span className="mr-1">🏖️</span>
+    {event.title}
+  </div>
+))}
               </div>
             );
           })}
@@ -894,24 +938,25 @@ const removeFormParticipant = (email: string) => {
         <div className={`border-b border-slate-200 p-3 flex items-center ${isToday ? 'bg-indigo-50/30' : 'bg-slate-50/30'}`}>
           <div className="text-sm font-medium text-slate-700 min-w-[80px]">All Day</div>
           <div className="flex space-x-2 ml-4 flex-wrap gap-2">
-            {allDayEvents.length > 0 ? allDayEvents.map((event) => (
-              <div
-                key={event.id}
-                className="text-xs rounded-md px-3 py-1.5 flex items-center"
-                style={{
-                  backgroundColor: `${event.color}15`,
-                  borderLeft: `3px solid ${event.color}`,
-                  color: '#333'
-                }}
-                title={event.title}
-              >
-                <span className="mr-1">🏖️</span>
-                {event.title}
-              </div>
-            )) : (
-              <div className="text-xs text-slate-500 italic">No all-day events</div>
-            )}
-          </div>
+          {allDayEvents.length > 0 ? allDayEvents.map((event) => (
+  <div
+    key={event.id}
+    className="text-xs rounded-md px-3 py-1.5 flex items-center cursor-pointer hover:shadow-md transition-all"
+    style={{
+      backgroundColor: `${event.color}15`,
+      borderLeft: `3px solid ${event.color}`,
+      color: '#333'
+    }}
+    title={event.title}
+    onClick={() => handleEventClick(event)}
+  >
+    <span className="mr-1">🏖️</span>
+    {event.title}
+  </div>
+)) : (
+  <div className="text-xs text-slate-500 italic">No all-day events</div>
+)}
+</div>
         </div>
 
         {/* Time grid */}
@@ -1145,38 +1190,31 @@ setEventFormData({
     
     try {
       if (eventFormData.isEditing && eventFormData.id) {
-        // First, create the usual update payload WITHOUT the color
         const updatePayload: UpdateEventPayload = {
           name: eventFormData.name,
           description: eventFormData.description,
           category: eventFormData.category,
           startedAt: localToUTC(new Date(eventFormData.startedAt)),
           endedAt: localToUTC(new Date(eventFormData.endedAt)),
-          // Remove color from here, we'll update it separately
         };
         
-        // Add priority and isCompleted only for tasks
         if (currentEvent?.type === EventType.TASK) {
           updatePayload.priority = eventFormData.priority;
           updatePayload.isCompleted = eventFormData.isCompleted;
         }
         
-        // 1. Update the main event data
         const updatedEvent = await dispatch(updateEvent(eventFormData.id, updatePayload));
         console.log("Event updated:", updatedEvent);
-        
-        // 2. Then update the color separately using your existing action
-        // We need to find the calendarMemberId from the current event
+        if (setAlertMessage) {
+          setAlertMessage("Event updated successfully");
+        }
         if (currentEvent?.participations && currentEvent.participations.length > 0) {
-          // Get the calendarMemberId from the first participation
           const calendarMemberId = currentEvent.participations[0].calendarMemberId;
           
           if (calendarMemberId) {
-            // Only update color if it's different from the current color
             const currentColor = currentEvent.participations[0].color;
             if (currentColor !== eventFormData.color) {
               console.log("Updating event color to:", eventFormData.color);
-              // Call your existing action to update the color
               await dispatch(updateEventParticipant(
                 eventFormData.id, 
                 calendarMemberId, 
@@ -1186,28 +1224,22 @@ setEventFormData({
           }
         }
         
-        // Update participants if it's an arrangement
         if (currentEvent?.type === EventType.ARRANGEMENT) {
-          // Get the current participants
           const currentParticipantIds = currentEvent.participations
             ? currentEvent.participations.map(p => p.calendarMember?.user?.id).filter(Boolean)
             : [];
           
-          // Get the new participants
           const newParticipantIds = formParticipants.map(p => p.id).filter(Boolean);
           
-          // Get the calendar ID
           const calendarId = currentEvent.participations?.[0]?.calendarMember?.calendarId;
           
           if (calendarId) {
-            // Remove participants that are not in the new list
             for (const p of currentEvent.participations || []) {
               if (p.calendarMember?.user?.id && !newParticipantIds.includes(p.calendarMember.user.id)) {
                 await dispatch(removeEventParticipant(currentEvent.id, p.calendarMemberId));
               }
             }
             
-            // Add new participants
             for (const participant of formParticipants) {
               if (participant.id && !currentParticipantIds.includes(participant.id)) {
                 await dispatch(addEventParticipant(currentEvent.id, calendarId, participant.email));
@@ -1216,16 +1248,13 @@ setEventFormData({
           }
         }
         
-        // Refresh calendar events after update
         if (currentEvent?.participations && currentEvent.participations.length > 0) {
           const calendarId = currentEvent.participations[0].calendarMember?.calendarId;
           if (calendarId && authUser?.id) {
             const updatedEvents = await dispatch(getCalendarEvents(calendarId, authUser.id));
             console.log("Updated events after edit:", updatedEvents);
             
-            // Notify parent component about the update
             if (onAddEvent && typeof onAddEvent === 'function') {
-              // Create a synthetic event object to notify parent
               const syntheticEvent = {
                 id: String(updatedEvent.id),
                 title: updatedEvent.name,
@@ -1239,12 +1268,10 @@ setEventFormData({
           }
         }
       } else {
-        // Create new event
         const createPayload: CreateEventPayload = {
           name: eventFormData.name,
           description: eventFormData.description,
           category: eventFormData.category,
-          // Convert local date to UTC before sending to server
           startedAt: localToUTC(new Date(eventFormData.startedAt)),
           endedAt: localToUTC(new Date(eventFormData.endedAt)),
           color: eventFormData.color || 
@@ -1254,12 +1281,10 @@ setEventFormData({
           calendarId: eventFormData.calendarId
         };
         
-        // Add priority for task type
         if (eventFormData.type === EventType.TASK && eventFormData.priority) {
           createPayload.priority = eventFormData.priority;
         }
         
-        // Add participant IDs for arrangement type
         if (eventFormData.type === EventType.ARRANGEMENT && formParticipants.length > 0) {
           createPayload.participantIds = formParticipants
             .map(p => p.id)
@@ -1268,15 +1293,14 @@ setEventFormData({
         
         const newEvent = await dispatch(createEvent(createPayload));
         console.log("New event created:", newEvent);
-        
-        // Refresh calendar events after creation
+        if (setAlertMessage) {
+          setAlertMessage("Event created successfully");
+        }
         if (authUser?.id) {
           const updatedEvents = await dispatch(getCalendarEvents(eventFormData.calendarId, authUser.id));
           console.log("Updated events after creation:", updatedEvents);
           
-          // Notify parent component about the new event
           if (onAddEvent && typeof onAddEvent === 'function') {
-            // Create a synthetic event object to notify parent
             const syntheticEvent = {
               id: String(newEvent.id),
               title: newEvent.name,
@@ -1293,17 +1317,16 @@ setEventFormData({
       setShowEventModal(false);
       resetEventForm();
     } catch (error) {
+      if (setAlertMessage) {
+        setAlertMessage("Error saving event. Please try again.");
+      }
       console.error("Error saving event:", error);
     }
   };
-// Add this helper function to format dates correctly
-function formatToUTCString(date: Date): string {
-  return date.toISOString(); // This returns the date in format like "2025-04-01T10:00:00.000Z"
-}
+
 const handleEditEvent = () => {
   if (!currentEvent) return;
   
-  // Load existing participants if it's an arrangement
   const currentParticipants: {email: string, id?: number}[] = [];
   if (currentEvent.type === EventType.ARRANGEMENT && currentEvent.participations) {
     currentEvent.participations.forEach(p => {
@@ -1316,7 +1339,6 @@ const handleEditEvent = () => {
     });
   }
   
-  // Get the event color or default to calendar color
   const eventColor = currentEvent.participations?.[0]?.color || 
                      calendars.find(cal => cal.id === String(currentEvent.participations?.[0]?.calendarMember?.calendarId))?.color || 
                      "#4CAF50";
@@ -1339,6 +1361,7 @@ const handleEditEvent = () => {
   });
   
   setShowEventDetailModal(false);
+  setHolidayEvent(null);
   setShowEventModal(true);
 };
 
@@ -1348,8 +1371,9 @@ const handleDeleteEvent = async () => {
   try {
     await dispatch(deleteEvent(currentEvent.id));
     console.log("Event deleted:", currentEvent.id);
-    
-    // Get the calendar ID of the deleted event
+    if (setAlertMessage) {
+      setAlertMessage("Event deleted successfully");
+    }
     let calendarId: string | number | undefined;
     if (currentEvent.participations && currentEvent.participations.length > 0) {
       calendarId = currentEvent.participations[0].calendarMember?.calendarId;
@@ -1357,13 +1381,11 @@ const handleDeleteEvent = async () => {
       calendarId = currentEvent.calendarId;
     }
     
-    // Notify parent component about the deletion
     if (calendarId && onAddEvent && typeof onAddEvent === 'function') {
-      // Create a special notification with a deletion flag
       const deletionEvent = {
         id: String(currentEvent.id),
         calendarId: String(calendarId),
-        deleted: true, // Special flag to indicate deletion
+        deleted: true,
         title: currentEvent.name || "",
         start: currentEvent.startedAt || "",
         type: currentEvent.type || "task"
@@ -1372,13 +1394,16 @@ const handleDeleteEvent = async () => {
     }
     
     setShowEventDetailModal(false);
+    setHolidayEvent(null);
   } catch (error) {
+    if (setAlertMessage) {
+      setAlertMessage("Error deleting event. Please try again");
+    }
     console.error("Error deleting event:", error);
   }
 };
 
   const resetEventForm = () => {
-    // Find the default calendar
     const defaultCalendar = calendars && calendars.length > 0 ? 
       calendars.find(cal => cal.calendarType !== "holiday") || calendars[0] : null;
     
@@ -1388,7 +1413,6 @@ const handleDeleteEvent = async () => {
       category: EventCategory.HOME,
       startedAt: "",
       endedAt: "",
-      // Use the calendar's color or a fallback
       color: defaultCalendar?.color || "#4CAF50",
       type: EventType.TASK,
       calendarId: defaultCalendar ? parseInt(defaultCalendar.id) : 0,
@@ -1397,7 +1421,7 @@ const handleDeleteEvent = async () => {
     setFormParticipants([]);
     setNewParticipantEmail("");
   };
-  // ---------- Participant handlers ----------
+
   const handleAddParticipant = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEventId || !participantEmail.trim()) return;
@@ -1410,18 +1434,22 @@ const handleDeleteEvent = async () => {
       
       const result = await dispatch(addEventParticipant(selectedEventId, calendarId, participantEmail));
       console.log("Added participant:", result);
+      if (setAlertMessage) {
+        setAlertMessage("Participant added successfully");
+      }
       setParticipantEmail("");
       
-      // Refresh event data
       await dispatch(getEvent(selectedEventId));
       
-      // Also refresh calendar events
       if (authUser?.id) {
         const updatedEvents = await dispatch(getCalendarEvents(calendarId, authUser.id));
         console.log("Updated events after adding participant:", updatedEvents);
       }
     } catch (error) {
       console.error("Error adding participant:", error);
+      if (setAlertMessage) {
+        setAlertMessage("Error adding participant. Please try again");
+      }
     } finally {
       setIsAddingParticipant(false);
     }
@@ -1433,11 +1461,11 @@ const handleDeleteEvent = async () => {
     try {
       const result = await dispatch(updateEventParticipant(selectedEventId, calendarMemberId, { responseStatus: status }));
       console.log("Updated participant status:", result);
-      
-      // Refresh event data
+      if (setAlertMessage) {
+        setAlertMessage("Status updated successfully");
+      }
       await dispatch(getEvent(selectedEventId));
       
-      // Also refresh calendar events
       if (currentEvent?.participations && currentEvent.participations.length > 0) {
         const calendarId = currentEvent.participations[0].calendarMember?.calendarId;
         if (calendarId && authUser?.id) {
@@ -1446,6 +1474,9 @@ const handleDeleteEvent = async () => {
         }
       }
     } catch (error) {
+      if (setAlertMessage) {
+        setAlertMessage("Error updating status. Please try again");
+      }
       console.error("Error updating participant status:", error);
     }
   };
@@ -1456,11 +1487,11 @@ const handleDeleteEvent = async () => {
     try {
       await dispatch(removeEventParticipant(selectedEventId, calendarMemberId));
       console.log("Removed participant:", calendarMemberId);
-      
-      // Refresh event data
+      if (setAlertMessage) {
+        setAlertMessage("Participant removed successfully");
+      }
       await dispatch(getEvent(selectedEventId));
-      
-      // Also refresh calendar events
+
       if (currentEvent?.participations && currentEvent.participations.length > 0) {
         const calendarId = currentEvent.participations[0].calendarMember?.calendarId;
         if (calendarId && authUser?.id) {
@@ -1470,20 +1501,19 @@ const handleDeleteEvent = async () => {
       }
     } catch (error) {
       console.error("Error removing participant:", error);
+      if (setAlertMessage) {
+        setAlertMessage("Error removing participant. Please try again");
+      }
     }
   };
 
-  // Check if user can manage participants (only for arrangement type events)
   const canManageParticipants = useMemo(() => {
     if (!currentEvent) return false;
     
-    // Only arrangement type events can have participants
     if (currentEvent.type !== EventType.ARRANGEMENT) return false;
     
-    // Creator can manage participants
     if (currentEvent.creatorId === authUser?.id) return true;
     
-    // Calendar owners and editors can manage participants
     const userRole = currentEvent.participations?.find(
       p => p.calendarMember?.userId === authUser?.id
     )?.calendarMember?.role;
@@ -1491,46 +1521,33 @@ const handleDeleteEvent = async () => {
     return userRole === 'owner' || userRole === 'editor';
   }, [currentEvent, authUser]);
 
-  // Check if user can edit the event
   const canEditEvent = useMemo(() => {
     if (!currentEvent) return false;
     
-    // Создатель события всегда может его редактировать
     if (currentEvent.creatorId === authUser?.id) return true;
     
-    // Проверяем роль пользователя в календаре, которому принадлежит событие
     const userRole = currentEvent.participations?.find(
       p => p.calendarMember?.userId === authUser?.id
     )?.calendarMember?.role?.toLowerCase();
     
-    // Owner и Editor могут редактировать любые события
     return userRole === 'owner' || userRole === 'editor';
   }, [currentEvent, authUser]);
 
   const canDeleteEvent = useMemo(() => {
     if (!currentEvent) return false;
     
-    // Создатель события всегда может его удалить
     if (currentEvent.creatorId === authUser?.id) return true;
     
-    // Проверяем роль пользователя в календаре
     const userRole = currentEvent.participations?.find(
       p => p.calendarMember?.userId === authUser?.id
     )?.calendarMember?.role?.toLowerCase();
     
-    // Только Owner может удалять чужие события
     return userRole === 'owner';
   }, [currentEvent, authUser]);
 
-  // Render modals
-  // This is the new renderEventModal function with a modern design
-// Replace your existing renderEventModal function with this code
-
 const renderEventModal = () => {
-  // Get the event color for styling
   const eventColor = eventFormData.color || "#4CAF50";
   
-  // Get event type icon and color scheme
   let typeIcon;
   let typeColor;
   let typeBgColor;
@@ -1541,7 +1558,7 @@ const renderEventModal = () => {
       typeIcon = <Calendar className="h-5 w-5" />;
       typeColor = "text-indigo-600";
       typeBgColor = "bg-indigo-50";
-      typeLabel = "Meeting";
+      typeLabel = "Arrangement";
       break;
     case EventType.TASK:
       typeIcon = <CheckSquare className="h-5 w-5" />;
@@ -1562,7 +1579,6 @@ const renderEventModal = () => {
       typeLabel = eventFormData.isEditing ? "Edit Event" : "New Event";
   }
   
-  // Find selected calendar
   const selectedCalendar = calendars.find(cal => cal.id === String(eventFormData.calendarId));
   
   return (
@@ -1990,10 +2006,96 @@ const renderEventModal = () => {
 // Replace your existing renderEventDetailModal function with this code
 
 const renderEventDetailModal = () => {
-  if (!currentEvent) return null;
   
   console.log("Rendering event details:", currentEvent);
-  
+  console.log("holidayEvent:", holidayEvent);
+  if (holidayEvent && holidayEvent.type === "holiday") {
+    const eventColor = holidayEvent.color || "#FF7043";
+    const eventDate = new Date(holidayEvent.start);
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
+          {/* Header with gradient background */}
+          <div 
+            className="px-6 py-5 relative overflow-hidden"
+            style={{ 
+              backgroundColor: eventColor,
+              color: '#fff'
+            }}
+          >
+            <div className="absolute -right-12 -top-10 w-32 h-32 rounded-full bg-white opacity-10"></div>
+            <div className="absolute -right-5 -bottom-20 w-40 h-40 rounded-full bg-white opacity-5"></div>
+            
+            <div className="flex justify-between items-start relative z-10">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-amber-50 text-amber-600">
+                    Holiday
+                  </span>
+                </div>
+                
+                <h2 className="text-2xl font-bold text-white mb-1 pr-8 break-words">
+                  {holidayEvent.title}
+                </h2>
+                
+                <div className="flex items-center text-white/90 text-sm mt-3">
+                  <Clock size={16} className="mr-2" />
+                  <span>{format(eventDate, "EEEE, MMMM d, yyyy")}</span>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => {
+                  setShowEventDetailModal(false);
+                  setHolidayEvent(null);
+                }}
+                className="p-1 rounded-full hover:bg-white/10 transition-colors"
+              >
+                <X size={24} className="text-white" />
+              </button>
+            </div>
+          </div>
+          
+          {/* Content area */}
+          {/* Content area */}
+<div className="p-6">
+  {holidayEvent.description ? (
+    holidayEvent.description.startsWith("Observance") ? (
+      <div>
+        <h3 className="text-sm font-medium text-gray-500 mb-2">Description</h3>
+        <p className="text-gray-700">Holiday</p>
+      </div>
+    ) : (
+      <div>
+        <h3 className="text-sm font-medium text-gray-500 mb-2">Description</h3>
+        <p className="text-gray-700 whitespace-pre-line">{holidayEvent.description}</p>
+      </div>
+    )
+  ) : (
+    <div className="py-2 px-3 bg-gray-50 rounded-md text-gray-500 text-sm italic">
+      No additional information available for this holiday.
+    </div>
+  )}
+</div>
+          
+          {/* Action buttons */}
+          <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end">
+            <button
+              onClick={() => {
+                setShowEventDetailModal(false);
+                setHolidayEvent(null);
+              }}
+              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (!currentEvent) return null;
   // Find the calendar this event belongs to
   const calendar = calendars.find(
     cal => cal.id === String(currentEvent.participations?.[0]?.calendarMember?.calendarId)
@@ -2617,6 +2719,10 @@ const renderEventDetailModal = () => {
       {showEventModal && renderEventModal()}
       {showEventDetailModal && renderEventDetailModal()}
       {showParticipantModal && renderParticipantModal()}
+      {/* Alert component */}
+      {/* {alertMessage && (
+        <Alert message={alertMessage} onClose={() => setAlertMessage(null)} />
+      )} */}
     </div>
   );
 };

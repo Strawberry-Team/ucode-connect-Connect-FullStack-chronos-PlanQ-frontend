@@ -123,6 +123,7 @@ const CalendarPage: React.FC = () => {
     const fetchHolidays = async () => {
       try {
         const data: any[] = await calendarService.getHolidays();
+        console.log('parapara',data);
         // Find the holiday calendar to get its color
         const holidayCalendar = calendars.find(cal => cal.calendarType === "holiday");
         const holidayColor = holidayCalendar?.color || "#FF7043";
@@ -139,6 +140,7 @@ const CalendarPage: React.FC = () => {
             calendarId: "holiday",
             type: "holiday",
             color: holidayColor, 
+            description: holiday.description,
           };
         });
         
@@ -1004,6 +1006,7 @@ const CalendarPage: React.FC = () => {
               events={allEvents}
               calendars={formattedCalendars}
               onAddEvent={handleAddEvent}
+              setAlertMessage={setAlertMessage}
             />
           </div>
         </div>
