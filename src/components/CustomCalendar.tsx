@@ -14,6 +14,7 @@ import {
   getWeek,
   parseISO,
   isSameDay,
+  differenceInDays,
 } from "date-fns";
 import { 
   createEvent, 
@@ -96,9 +97,39 @@ const predefinedColors = [
 const calculateEventPositions = (
   events: CalendarEvent[],
   startHour: number,
-  hourHeight: number
+  hourHeight: number,
+  viewDate: Date
 ) => {
   if (!events || events.length === 0) return [];
+
+  const isMultiDayEvent = (event: CalendarEvent): boolean => {
+    if (!event.start || !event.end) return false;
+    
+    const startDate = new Date(event.start);
+    const endDate = new Date(event.end);
+    
+    return startDate.toDateString() !== endDate.toDateString();
+  };
+  
+  const isContinuedFromPreviousDay = (event: CalendarEvent): boolean => {
+    if (!event.start || !event.end) return false;
+    
+    const startDate = new Date(event.start);
+    const viewDateString = format(viewDate, "yyyy-MM-dd");
+    const eventStartDateString = format(startDate, "yyyy-MM-dd");
+    
+    return eventStartDateString !== viewDateString && isMultiDayEvent(event);
+  };
+  
+  const continuesNextDay = (event: CalendarEvent): boolean => {
+    if (!event.start || !event.end) return false;
+    
+    const endDate = new Date(event.end);
+    const viewDateString = format(viewDate, "yyyy-MM-dd");
+    const eventEndDateString = format(endDate, "yyyy-MM-dd");
+    
+    return eventEndDateString !== viewDateString && isMultiDayEvent(event);
+  };
 
   const sortedEvents = events
     .slice()
@@ -114,9 +145,9 @@ const calculateEventPositions = (
     if (!event || !event.start) return;
     
     const eventStart = new Date(event.start);
-const eventEnd = event.end
-  ? new Date(event.end)
-  : new Date(eventStart.getTime() + 30 * 60000);
+    const eventEnd = event.end
+      ? new Date(event.end)
+      : new Date(eventStart.getTime() + 30 * 60000);
     
     if (currentGroup.length === 0) {
       currentGroup.push(event);
@@ -145,7 +176,14 @@ const eventEnd = event.end
     groups.push(currentGroup);
   }
 
-  const layouts: { event: CalendarEvent; column: number; total: number }[] = [];
+  const layouts: { 
+    event: CalendarEvent; 
+    column: number; 
+    total: number;
+    isMultiDay?: boolean;
+    continuesNextDay?: boolean;
+    continuesFromPrevDay?: boolean;
+  }[] = [];
   
   groups.forEach((group) => {
     const columns: CalendarEvent[] = [];
@@ -170,7 +208,14 @@ const eventEnd = event.end
         
         if (eventStart >= lastEnd) {
           columns[i] = event;
-          layouts.push({ event, column: i, total: 0 });
+          layouts.push({ 
+            event, 
+            column: i, 
+            total: 0,
+            isMultiDay: isMultiDayEvent(event),
+            continuesNextDay: continuesNextDay(event),
+            continuesFromPrevDay: isContinuedFromPreviousDay(event)
+          });
           placed = true;
           break;
         }
@@ -178,7 +223,14 @@ const eventEnd = event.end
       
       if (!placed) {
         columns.push(event);
-        layouts.push({ event, column: columns.length - 1, total: 0 });
+        layouts.push({ 
+          event, 
+          column: columns.length - 1, 
+          total: 0,
+          isMultiDay: isMultiDayEvent(event),
+          continuesNextDay: continuesNextDay(event),
+          continuesFromPrevDay: isContinuedFromPreviousDay(event)
+        });
       }
     });
     
@@ -200,8 +252,20 @@ const eventEnd = event.end
       ? new Date(item.event.end)
       : new Date(eventStart.getTime() + 30 * 60000);
     
-    const startMinutes = eventStart.getHours() * 60 + eventStart.getMinutes();
-    const endMinutes = eventEnd.getHours() * 60 + eventEnd.getMinutes();
+    const adjustedStartTime = item.continuesFromPrevDay
+      ? new Date(viewDate)
+      : eventStart;
+    
+    const nextDayStart = new Date(viewDate);
+    nextDayStart.setHours(23, 59, 59, 999);
+    
+    const adjustedEndTime = item.continuesNextDay
+      ? nextDayStart
+      : eventEnd;
+    
+    const startMinutes = adjustedStartTime.getHours() * 60 + adjustedStartTime.getMinutes();
+    const endMinutes = adjustedEndTime.getHours() * 60 + adjustedEndTime.getMinutes();
+    
     const top = ((startMinutes - startHour * 60) / 60) * hourHeight;
     const height = ((endMinutes - startMinutes) / 60) * hourHeight;
 
@@ -214,9 +278,39 @@ const eventEnd = event.end
       height,
       left: leftPercentage,
       width: widthPercentage,
+      isMultiDay: item.isMultiDay,
+      continuesNextDay: item.continuesNextDay,
+      continuesFromPrevDay: item.continuesFromPrevDay
     };
   }).filter(Boolean) as any[];
 };
+
+const getEventDays = (event: CalendarEvent): Date[] => {
+  if (!event.start) return [];
+  
+  const startDate = new Date(event.start);
+  startDate.setHours(0, 0, 0, 0);
+  
+  if (!event.end) return [startDate];
+  
+  const endDate = new Date(event.end);
+  endDate.setHours(0, 0, 0, 0);
+  
+  if (startDate.toDateString() === endDate.toDateString()) {
+    return [startDate];
+  }
+  
+  const days: Date[] = [];
+  let currentDate = new Date(startDate);
+  
+  while (currentDate <= endDate) {
+    days.push(new Date(currentDate));
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return days;
+};
+
 const roundToNearestThirtyMinutes = (date: Date, roundDown: boolean = true): Date => {
   const coeff = 1000 * 60 * 30;
   const result = new Date(date);
@@ -263,6 +357,27 @@ const YearView: React.FC<YearViewProps> = ({ year, events, onDayClick }) => {
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
+  const getMultiDayEventDays = (event: CalendarEvent): string[] => {
+    if (!event.start || !event.end) return [];
+    
+    const startDate = new Date(event.start);
+    const endDate = new Date(event.end);
+    
+    if (startDate.toDateString() === endDate.toDateString()) {
+      return [];
+    }
+    
+    const days: string[] = [];
+    let currentDate = new Date(startDate);
+    
+    while (currentDate <= endDate) {
+      days.push(format(currentDate, "yyyy-MM-dd"));
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return days;
+  };
+
   return (
     <div className="grid grid-cols-4 gap-6 p-6 bg-slate-50 rounded-lg">
       {months.map((month, index) => {
@@ -270,10 +385,21 @@ const YearView: React.FC<YearViewProps> = ({ year, events, onDayClick }) => {
           if (!event || !event.start) return false;
           
           const eventDate = new Date(event.start);
-          return (
-            eventDate.getFullYear() === year &&
-            eventDate.getMonth() === index
-          );
+          
+          if (eventDate.getFullYear() === year && eventDate.getMonth() === index) {
+            return true;
+          }
+          
+          if (event.end) {
+            const multiDayDates = getMultiDayEventDays(event);
+            
+            return multiDayDates.some(dateStr => {
+              const date = new Date(dateStr);
+              return date.getFullYear() === year && date.getMonth() === index;
+            });
+          }
+          
+          return false;
         });
         
         const daysCount = new Date(year, index + 1, 0).getDate();
@@ -311,7 +437,21 @@ const YearView: React.FC<YearViewProps> = ({ year, events, onDayClick }) => {
                   const eventsForDay = monthEvents.filter(
                     (event) => {
                       if (!event || !event.start) return false;
-                      return new Date(event.start).toDateString() === date.toDateString();
+                      
+                      if (new Date(event.start).toDateString() === date.toDateString()) {
+                        return true;
+                      }
+                      
+                      if (event.end) {
+                        const startDate = new Date(event.start);
+                        const endDate = new Date(event.end);
+                        
+                        if (startDate.toDateString() !== endDate.toDateString()) {
+                          return date >= startDate && date <= endDate;
+                        }
+                      }
+                      
+                      return false;
                     }
                   );
                   
@@ -631,52 +771,139 @@ const removeFormParticipant = (email: string) => {
           </div>
           {dayEvents.length > 0 && (
             <div className="mt-2 space-y-1.5 overflow-hidden">
-              {dayEvents.slice(0, 3).map((event) => {
-                const calendar = calendars.find(cal => cal.id === event.calendarId) || { color: event.color };
-                const eventBgColor = event.color && event.color.trim() !== "" ? event.color : calendar.color;
-                const calendarColor = calendar?.color || "#3B82F6";
-                let typeIcon;
-                switch(event.type) {
-                  case 'arrangement':
-                    typeIcon = '🗓️';
-                    break;
-                  case 'task':
-                    typeIcon = '✓';
-                    break;
-                  case 'reminder':
-                    typeIcon = '⏰';
-                    break;
-                  case 'holiday':
-                    typeIcon = '🏖️';
-                    break;
-                  default:
-                    typeIcon = '⏰';
-                }
-                       
-                return (
-                  <div
-                    key={event.id}
-                    className="flex items-center text-xs px-2 py-1 rounded-md"
-                    style={{ 
-                      backgroundColor: `${eventBgColor}15`,
-                      borderLeft: `4px solid ${calendarColor}` 
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedEventId(parseInt(event.id));
-                      setShowEventDetailModal(true);
-                    }}
-                  >
-                    <span className="text-xs mr-1">{typeIcon}</span>
-                    <span className="truncate text-slate-700">{event.title}</span>
-                  </div>
+              {(() => {
+                const multiDayEvents = dayEvents.filter(event => 
+                  event.end && new Date(event.start).toDateString() !== new Date(event.end).toDateString()
                 );
-              })}
-              {/* {dayEvents.length > 3 && (
-                <div className="text-xs text-slate-500 italic pl-2">
-                  +{dayEvents.length - 3} more
-                </div>
-              )} */}
+                
+                const singleDayEvents = dayEvents.filter(event => 
+                  !event.end || new Date(event.start).toDateString() === new Date(event.end).toDateString()
+                );
+                
+                const processedEvents = multiDayEvents.map(event => {
+                  const eventDays = getEventDays(event);
+                  const currentDayIndex = eventDays.findIndex(d => 
+                    d.toDateString() === cloneDay.toDateString()
+                  );
+                  
+                  const isFirstDay = currentDayIndex === 0;
+                  const isLastDay = currentDayIndex === eventDays.length - 1;
+                  
+                  return {
+                    ...event,
+                    position: { isFirstDay, isLastDay, dayIndex: currentDayIndex, totalDays: eventDays.length }
+                  };
+                });
+                
+                const multiDayElements = processedEvents.slice(0, 2).map((event) => {
+                  const calendar = calendars.find(cal => cal.id === event.calendarId) || { color: event.color };
+                  const eventBgColor = event.color && event.color.trim() !== "" ? event.color : calendar.color;
+                  const calendarColor = calendar?.color || "#3B82F6";
+                  
+                  const { isFirstDay, isLastDay } = event.position;
+                  let borderRadius = '';
+                  let marginLeft = '';
+                  let marginRight = '';
+                  let extraIndicator = '';
+                  
+                  if (isFirstDay && !isLastDay) {
+                    borderRadius = 'rounded-l-md rounded-r-none';
+                    marginRight = '-1px';
+                    extraIndicator = '→';
+                  } else if (!isFirstDay && isLastDay) {
+                    borderRadius = 'rounded-r-md rounded-l-none';
+                    marginLeft = '-1px';
+                    extraIndicator = '←';
+                  } else if (!isFirstDay && !isLastDay) {
+                    borderRadius = 'rounded-none';
+                    marginLeft = '-1px';
+                    marginRight = '-1px';
+                    extraIndicator = '↔';
+                  }
+                  
+                  return (
+                    <div
+                      key={event.id}
+                      className={`flex items-center text-xs px-2 py-1 ${borderRadius || 'rounded-md'}`}
+                      style={{ 
+                        backgroundColor: `${eventBgColor}15`,
+                        borderLeft: isFirstDay ? `4px solid ${calendarColor}` : 'none',
+                        marginLeft,
+                        marginRight
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedEventId(parseInt(event.id));
+                        setShowEventDetailModal(true);
+                      }}
+                    >
+                      <span className="text-xs mr-1">📆</span>
+                      <span className="truncate text-slate-700">{event.title}</span>
+                      {extraIndicator && (
+                        <span className="ml-auto text-slate-500">{extraIndicator}</span>
+                      )}
+                    </div>
+                  );
+                });
+                
+                const remainingSlots = 3 - multiDayElements.length;
+                const singleDayElements = singleDayEvents.slice(0, remainingSlots).map((event) => {
+                  const calendar = calendars.find(cal => cal.id === event.calendarId) || { color: event.color };
+                  const eventBgColor = event.color && event.color.trim() !== "" ? event.color : calendar.color;
+                  const calendarColor = calendar?.color || "#3B82F6";
+                  
+                  let typeIcon;
+                  switch(event.type) {
+                    case 'arrangement':
+                      typeIcon = '🗓️';
+                      break;
+                    case 'task':
+                      typeIcon = '✓';
+                      break;
+                    case 'reminder':
+                      typeIcon = '⏰';
+                      break;
+                    case 'holiday':
+                      typeIcon = '🏖️';
+                      break;
+                    default:
+                      typeIcon = '⏰';
+                  }
+                  
+                  return (
+                    <div
+                      key={event.id}
+                      className="flex items-center text-xs px-2 py-1 rounded-md"
+                      style={{ 
+                        backgroundColor: `${eventBgColor}15`,
+                        borderLeft: `4px solid ${calendarColor}` 
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedEventId(parseInt(event.id));
+                        setShowEventDetailModal(true);
+                      }}
+                    >
+                      <span className="text-xs mr-1">{typeIcon}</span>
+                      <span className="truncate text-slate-700">{event.title}</span>
+                    </div>
+                  );
+                });
+                
+                const combinedElements = [...multiDayElements, ...singleDayElements];
+                const totalEvents = dayEvents.length;
+                
+                return (
+                  <>
+                    {combinedElements}
+                    {totalEvents > 3 && (
+                      <div className="text-xs text-slate-500 italic pl-2">
+                        +{totalEvents - 3} more
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -702,7 +929,34 @@ const removeFormParticipant = (email: string) => {
       hours.push(h);
     }
     const totalHeight = (endHour - startHour) * hourHeight;
-
+  
+    const isMultiDayEvent = (event: CalendarEvent): boolean => {
+      if (!event.start || !event.end) return false;
+      
+      const startDate = new Date(event.start);
+      const endDate = new Date(event.end);
+      
+      return startDate.toDateString() !== endDate.toDateString();
+    };
+    
+    const isEventActiveOnDay = (event: CalendarEvent, day: Date): boolean => {
+      if (!event.start) return false;
+      
+      const eventStart = new Date(event.start);
+      const eventEnd = event.end ? new Date(event.end) : new Date(eventStart.getTime() + 30 * 60000);
+      
+      const dayStart = new Date(day);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(day);
+      dayEnd.setHours(23, 59, 59, 999);
+      
+      return (
+        (eventStart >= dayStart && eventStart <= dayEnd) ||
+        (eventEnd >= dayStart && eventEnd <= dayEnd) ||
+        (eventStart <= dayStart && eventEnd >= dayEnd)
+      );
+    };
+  
     return (
       <div className="overflow-auto relative rounded-lg shadow-sm border border-slate-200 bg-white">
         <div className="grid grid-cols-8 sticky top-0 z-10 bg-white">
@@ -736,8 +990,16 @@ const removeFormParticipant = (email: string) => {
             const allDayEvents = events.filter(
               (event) => {
                 if (!event || !event.start) return false;
-                return format(new Date(event.start), "yyyy-MM-dd") === dayStr &&
-                       event.type === "holiday";
+                
+                if (event.type === "holiday" && format(new Date(event.start), "yyyy-MM-dd") === dayStr) {
+                  return true;
+                }
+                
+                if (isMultiDayEvent(event) && isEventActiveOnDay(event, dayItem)) {
+                  return true;
+                }
+                
+                return false;
               }
             );
             
@@ -747,24 +1009,55 @@ const removeFormParticipant = (email: string) => {
                 className={`border-r border-b border-slate-200 p-1 ${
                   isToday ? 'bg-indigo-50/30' : ''
                 }`}
-                style={{ height: allDayHeight }}
+                style={{ height: allDayHeight, overflow: 'auto', maxHeight: allDayHeight * 3 }}
               >
-                {allDayEvents.map((event) => (
-  <div
-    key={event.id}
-    className="text-xs rounded-md px-2 py-1 mb-1 truncate cursor-pointer hover:shadow-md transition-all"
-    style={{ 
-      backgroundColor: `${event.color}20`,
-      borderLeft: `3px solid ${event.color}`,
-      color: '#333'
-    }}
-    title={event.title}
-    onClick={() => handleEventClick(event)}
-  >
-    <span className="mr-1">🏖️</span>
-    {event.title}
-  </div>
-))}
+                {allDayEvents.map((event) => {
+                  const isMultiDay = isMultiDayEvent(event);
+                  
+                  const eventStartDate = new Date(event.start);
+                  const eventEndDate = event.end ? new Date(event.end) : new Date(eventStartDate);
+                  
+                  const isStartDay = dayItem.toDateString() === eventStartDate.toDateString();
+                  const isEndDay = dayItem.toDateString() === eventEndDate.toDateString();
+                  
+                  let borderRadius = "rounded-md";
+                  
+                  if (isMultiDay) {
+                    if (!isStartDay && !isEndDay) {
+                      borderRadius = "rounded-none";
+                    } else if (isStartDay && !isEndDay) {
+                      borderRadius = "rounded-l-md rounded-r-none";
+                    } else if (!isStartDay && isEndDay) {
+                      borderRadius = "rounded-r-md rounded-l-none";
+                    }
+                  }
+                  
+                  const calendar = calendars.find(cal => cal.id === event.calendarId);
+                  const eventColor = event.color || calendar?.color || "#4CAF50";
+                  
+                  return (
+                    <div
+                      key={event.id}
+                      className={`text-xs px-2 py-1 mb-1 truncate cursor-pointer hover:shadow-md transition-all ${borderRadius}`}
+                      style={{ 
+                        backgroundColor: `${eventColor}20`,
+                        borderLeft: isStartDay || !isMultiDay ? `3px solid ${eventColor}` : 'none',
+                        borderRight: isEndDay || !isMultiDay ? '' : 'none',
+                        color: '#333'
+                      }}
+                      title={`${event.title}${isMultiDay ? ' (Multi-day event)' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEventClick(event);
+                      }}
+                    >
+                      <span className="mr-1">
+                        {event.type === "holiday" ? "🏖️" : isMultiDay ? "📆" : "⏱️"}
+                      </span>
+                      {event.title}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -782,127 +1075,194 @@ const removeFormParticipant = (email: string) => {
               </div>
             ))}
           </div>
-          {weekDays.map((dayItem, idx) => {
-            const dayStr = format(dayItem, "yyyy-MM-dd");
-            const isToday = dayStr === format(new Date(), "yyyy-MM-dd");
-            
-            const dayEvents = events.filter(
-              (event) => {
-                if (!event || !event.start) return false;
-                return format(new Date(event.start), "yyyy-MM-dd") === dayStr &&
-                       event.type !== "holiday";
+{weekDays.map((dayItem, idx) => {
+          const dayStr = format(dayItem, "yyyy-MM-dd");
+          const isToday = dayStr === format(new Date(), "yyyy-MM-dd");
+          
+          const dayEvents = events.filter(
+            (event) => {
+              if (!event || !event.start) return false;
+              
+              if (event.type === "holiday") return false;
+              
+              if (event.end && new Date(event.start).toDateString() !== new Date(event.end).toDateString()) {
+                const eventStartDay = format(new Date(event.start), "yyyy-MM-dd");
+                const eventEndDay = format(new Date(event.end), "yyyy-MM-dd");
+                
+                if (eventStartDay === dayStr || eventEndDay === dayStr) {
+                  return true;
+                }
+                
+                const currentDay = new Date(dayStr);
+                const startDate = new Date(event.start);
+                const endDate = new Date(event.end);
+                
+                return currentDay >= startDate && currentDay <= endDate;
               }
-            );
-            
-            console.log(`Found ${dayEvents.length} events for week day ${dayStr}`);
-            
-            const layouts = calculateEventPositions(
-              dayEvents.filter(event => event && event.start),
-              startHour,
-              hourHeight
-            );
-            
-            return (
-              <div
-                key={idx}
-                className={`relative border-l border-slate-200 ${isToday ? 'bg-indigo-50/30' : ''}`}
-                style={{ height: `${totalHeight}px` }}
-                onDoubleClick={(e) => handleWeekViewDoubleClick(e, dayItem)}
-              >
-                {hours.map((hour, i) => (
+              
+              return format(new Date(event.start), "yyyy-MM-dd") === dayStr;
+            }
+          );
+          
+          console.log(`Found ${dayEvents.length} events for week day ${dayStr}`);
+          
+          const layouts = calculateEventPositions(
+            dayEvents.filter(event => event && event.start),
+            startHour,
+            hourHeight,
+            dayItem
+          );
+          
+          return (
+            <div
+              key={idx}
+              className={`relative border-l border-slate-200 ${isToday ? 'bg-indigo-50/30' : ''}`}
+              style={{ height: `${totalHeight}px` }}
+              onClick={(e) => handleWeekViewDoubleClick(e, dayItem)}
+            >
+              {hours.map((hour, i) => (
+                <div
+                  key={i}
+                  style={{ height: `${hourHeight}px` }}
+                  className="border-t border-slate-200 hover:bg-slate-100 cursor-pointer"
+                ></div>
+              ))}
+              
+              {isToday && (() => {
+                const currentMinutes =
+                  currentNow.getHours() * 60 + currentNow.getMinutes();
+                const lineTop =
+                  ((currentMinutes - startHour * 60) / 60) * hourHeight;
+                return (
                   <div
-                    key={i}
-                    style={{ height: `${hourHeight}px` }}
-                    className="border-t border-slate-200"
-                  ></div>
-                ))}
-                
-                {isToday && (() => {
-                  const currentMinutes =
-                    currentNow.getHours() * 60 + currentNow.getMinutes();
-                  const lineTop =
-                    ((currentMinutes - startHour * 60) / 60) * hourHeight;
-                  return (
-                    <div
-                      className="absolute left-0 right-0 z-20"
-                      style={{ top: lineTop }}
-                    >
-                      <div className="relative">
-                        <div className="absolute -left-1 w-2 h-2 rounded-full bg-red-500"></div>
-                        <div className="border-t-2 border-red-500 border-dashed w-full"></div>
-                      </div>
+                    className="absolute left-0 right-0 z-20"
+                    style={{ top: lineTop }}
+                  >
+                    <div className="relative">
+                      <div className="absolute -left-1 w-2 h-2 rounded-full bg-red-500"></div>
+                      <div className="border-t-2 border-red-500 border-dashed w-full"></div>
                     </div>
-                  );
-                })()}
+                  </div>
+                );
+              })()}
+              
+              {layouts.map((layout) => {
+                const calendar = calendars.find(cal => cal.id === layout.event.calendarId);
                 
-                {layouts.map((layout) => {
-                  const calendar = calendars.find(cal => cal.id === layout.event.calendarId);
-                  
-                  if (!calendar) {
-                    console.warn(`No calendar found for event ${layout.event.id} with calendarId ${layout.event.calendarId}`);
+                if (!calendar) {
+                  console.warn(`No calendar found for event ${layout.event.id} with calendarId ${layout.event.calendarId}`);
+                }
+                
+                const calendarColor = calendar?.color || "#3B82F6";
+                const eventBgColor =
+                  layout.event.color && layout.event.color.trim() !== ""
+                    ? layout.event.color
+                    : calendarColor;
+                    
+                const eventStart = new Date(layout.event.start);
+                const startTime = format(eventStart, 'h:mm a');
+                
+                let displayTime = startTime;
+                let multiDayIndicator = '';
+                
+                if (layout.isMultiDay) {
+                  if (layout.continuesFromPrevDay && layout.continuesNextDay) {
+                    multiDayIndicator = '(continued → continues)';
+                  } else if (layout.continuesFromPrevDay) {
+                    multiDayIndicator = '(continued → ends today)';
+                  } else if (layout.continuesNextDay) {
+                    multiDayIndicator = '(starts today → continues)';
                   }
-                  
-                  const calendarColor = calendar?.color || "#3B82F6";
-                  const eventBgColor =
-                    layout.event.color && layout.event.color.trim() !== ""
-                      ? layout.event.color
-                      : calendarColor;
-                      
-                  const eventStart = new Date(layout.event.start);
-                  const startTime = format(eventStart, 'h:mm a');
-                  
-                  let typeIcon;
-                  switch(layout.event.type) {
-                    case 'arrangement':
-                      typeIcon = '🗓️';
-                      break;
-                    case 'task':
-                      typeIcon = '✓';
-                      break;
-                    case 'reminder':
-                      typeIcon = '⏰';
-                      break;
-                    default:
-                      typeIcon = '⏰';
-                  }
-                  
-                  return (
-                    <div
-                      key={layout.event.id}
-                      style={{
-                        top: `${layout.top}px`,
-                        height: `${layout.height}px`,
-                        left: `${layout.left}%`,
-                        width: `calc(${layout.width}% - 4px)`,
-                        position: "absolute",
-                        marginLeft: "2px",
-                        padding: "4px",
-                        backgroundColor: `${eventBgColor}15`,
-                        borderLeft: `4px solid ${calendarColor}`,
-                      }}
-                      className="text-xs rounded-md shadow-sm overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-md group"
-                      title={layout.event.title}
-                      onClick={() => {
-                        setSelectedEventId(parseInt(layout.event.id));
-                        setShowEventDetailModal(true);
-                      }}
-                    >
-                      <div className="font-semibold text-slate-700 truncate flex items-center">
-                        <span className="mr-1">{typeIcon}</span>
-                        {layout.event.title}
-                      </div>
-                      <div className="text-slate-500 text-xs">{startTime}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+                }
+                
+                let typeIcon;
+                switch(layout.event.type) {
+                  case 'arrangement':
+                    typeIcon = '🗓️';
+                    break;
+                  case 'task':
+                    typeIcon = '✓';
+                    break;
+                  case 'reminder':
+                    typeIcon = '⏰';
+                    break;
+                  default:
+                    typeIcon = '⏰';
+                }
 
+                let borderStyle = {};
+                
+                if (layout.isMultiDay) {
+                  if (layout.continuesFromPrevDay && layout.continuesNextDay) {
+                    borderStyle = {
+                      borderLeft: `4px solid ${calendarColor}`,
+                      borderTop: '2px dashed #ccc',
+                      borderBottom: '2px dashed #ccc'
+                    };
+                  } else if (layout.continuesFromPrevDay) {
+                    borderStyle = {
+                      borderLeft: `4px solid ${calendarColor}`,
+                      borderTop: '2px dashed #ccc'
+                    };
+                  } else if (layout.continuesNextDay) {
+                    borderStyle = {
+                      borderLeft: `4px solid ${calendarColor}`,
+                      borderBottom: '2px dashed #ccc'
+                    };
+                  } else {
+                    borderStyle = {
+                      borderLeft: `4px solid ${calendarColor}`
+                    };
+                  }
+                } else {
+                  borderStyle = {
+                    borderLeft: `4px solid ${calendarColor}`
+                  };
+                }
+                
+                return (
+                  <div
+                    key={layout.event.id}
+                    data-event-id={layout.event.id}
+                    style={{
+                      top: `${layout.top}px`,
+                      height: `${layout.height}px`,
+                      left: `${layout.left}%`,
+                      width: `calc(${layout.width}% - 4px)`,
+                      position: "absolute",
+                      marginLeft: "2px",
+                      padding: "4px",
+                      backgroundColor: `${eventBgColor}15`,
+                      ...borderStyle
+                    }}
+                    className="text-xs rounded-md shadow-sm overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-md group"
+                    title={`${layout.event.title}${layout.isMultiDay ? ' (Multi-day event)' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedEventId(parseInt(layout.event.id));
+                      setShowEventDetailModal(true);
+                    }}
+                  >
+                    <div className="font-semibold text-slate-700 truncate flex items-center">
+                      <span className="mr-1">{typeIcon}</span>
+                      {layout.event.title}
+                    </div>
+                    <div className="text-slate-500 text-xs flex items-center">
+                      <span>{displayTime}</span>
+                      {multiDayIndicator && (
+                        <span className="ml-1 text-xs text-indigo-600">{multiDayIndicator}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
   // =================== DAY VIEW ===================
   const renderDayView = () => {
     const dayStr = format(currentDate, "yyyy-MM-dd");
@@ -911,16 +1271,50 @@ const removeFormParticipant = (email: string) => {
     const allDayEvents = events.filter(
       (event) => {
         if (!event || !event.start) return false;
-        return format(new Date(event.start), "yyyy-MM-dd") === dayStr &&
-               event.type === "holiday";
+    
+        if (event.type === "holiday" && format(new Date(event.start), "yyyy-MM-dd") === dayStr) {
+          return true;
+        }
+        
+        if (event.end) {
+          const startDate = new Date(event.start);
+          const endDate = new Date(event.end);
+
+          if (startDate.toDateString() !== endDate.toDateString()) {
+            const currentDay = new Date(dayStr);
+            currentDay.setHours(0, 0, 0, 0);
+            
+            const nextDay = new Date(currentDay);
+            nextDay.setDate(nextDay.getDate() + 1);
+            
+            if (
+              (format(startDate, "yyyy-MM-dd") === dayStr) ||
+              (currentDay >= startDate && currentDay < endDate)
+            ) {
+              return true;
+            }
+          }
+        }
+        
+        return false;
       }
     );
     
     const timedEvents = events.filter(
       (event) => {
         if (!event || !event.start) return false;
-        return format(new Date(event.start), "yyyy-MM-dd") === dayStr &&
-               event.type !== "holiday";
+        
+        if (event.type === "holiday") return false;
+        
+        if (event.end) {
+          const startDate = new Date(event.start);
+          const endDate = new Date(event.end);
+          if (startDate.toDateString() !== endDate.toDateString()) {
+            return false;
+          }
+        }
+        
+        return format(new Date(event.start), "yyyy-MM-dd") === dayStr;
       }
     );
     
@@ -936,9 +1330,10 @@ const removeFormParticipant = (email: string) => {
     const layouts = calculateEventPositions(
       timedEvents.filter(event => event && event.start),
       startHour,
-      hourHeight
+      hourHeight,
+      currentDate
     );
-
+  
     return (
       <div className="overflow-auto relative rounded-lg shadow-sm border border-slate-200 bg-white">
         <div className={`py-4 px-6 font-medium text-center border-b ${isToday ? 'bg-indigo-50' : 'bg-slate-50'}`}>
@@ -951,30 +1346,84 @@ const removeFormParticipant = (email: string) => {
           </span>
         </div>
         
-        <div className={`border-b border-slate-200 p-3 flex items-center ${isToday ? 'bg-indigo-50/30' : 'bg-slate-50/30'}`}>
-          <div className="text-sm font-medium text-slate-700 min-w-[80px]">All Day</div>
-          <div className="flex space-x-2 ml-4 flex-wrap gap-2">
-          {allDayEvents.length > 0 ? allDayEvents.map((event) => (
-  <div
-    key={event.id}
-    className="text-xs rounded-md px-3 py-1.5 flex items-center cursor-pointer hover:shadow-md transition-all"
-    style={{
-      backgroundColor: `${event.color}15`,
-      borderLeft: `3px solid ${event.color}`,
-      color: '#333'
-    }}
-    title={event.title}
-    onClick={() => handleEventClick(event)}
-  >
-    <span className="mr-1">🏖️</span>
-    {event.title}
-  </div>
-)) : (
-  <div className="text-xs text-slate-500 italic">No all-day events</div>
-)}
-</div>
+        <div className={`border-b border-slate-200 p-3 ${isToday ? 'bg-indigo-50/30' : 'bg-slate-50/30'}`}>
+          <div className="flex items-center mb-2">
+            <div className="text-sm font-medium text-slate-700 min-w-[80px]">All Day</div>
+          </div>
+          <div className="space-y-1.5 ml-[80px]">
+            {allDayEvents.length > 0 ? allDayEvents.map((event) => {
+              const isMultiDay = event.end && new Date(event.start).toDateString() !== new Date(event.end).toDateString();
+              
+              const eventStartDate = new Date(event.start);
+              const eventEndDate = event.end ? new Date(event.end) : new Date(eventStartDate);
+              const viewDate = new Date(dayStr);
+              
+              const isStartDay = viewDate.toDateString() === eventStartDate.toDateString();
+              const isEndDay = viewDate.toDateString() === eventEndDate.toDateString();
+              
+              let borderRadius = "rounded-md";
+              let eventWidth = "w-full";
+              
+              if (isMultiDay) {
+                if (!isStartDay && !isEndDay) {
+                  borderRadius = "rounded-none";
+                  eventWidth = "w-full";
+                } else if (isStartDay && !isEndDay) {
+                  borderRadius = "rounded-l-md rounded-r-none";
+                  eventWidth = "w-full";
+                } else if (!isStartDay && isEndDay) {
+                  borderRadius = "rounded-r-md rounded-l-none";
+                  eventWidth = "w-full";
+                }
+              }
+              
+              let dateRangeText = "";
+              if (isMultiDay) {
+                if (isStartDay) {
+                  dateRangeText = `→ ${format(eventEndDate, "MMM d")}`;
+                } else if (isEndDay) {
+                  dateRangeText = `${format(eventStartDate, "MMM d")} →`;
+                } else {
+                  dateRangeText = `${format(eventStartDate, "MMM d")} → ${format(eventEndDate, "MMM d")}`;
+                }
+              }
+              
+              const calendar = calendars.find(cal => cal.id === event.calendarId);
+              const eventColor = event.color || calendar?.color || "#4CAF50";
+              
+              return (
+                <div
+                  key={event.id}
+                  className={`text-xs px-3 py-1.5 flex items-center cursor-pointer hover:shadow-md transition-all ${borderRadius} ${eventWidth}`}
+                  style={{
+                    backgroundColor: `${eventColor}15`,
+                    borderLeft: `3px solid ${eventColor}`,
+                    color: '#333',
+                    ...(isMultiDay && !isStartDay ? { borderLeft: 'none' } : {}),
+                    ...(isMultiDay && !isEndDay ? { borderRight: 'none' } : {})
+                  }}
+                  title={event.title}
+                  onClick={() => handleEventClick(event)}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center">
+                      <span className="mr-1">
+                        {event.type === "holiday" ? "🏖️" : isMultiDay ? "📆" : "⏱️"}
+                      </span>
+                      <span className="font-medium">{event.title}</span>
+                    </div>
+                    {isMultiDay && dateRangeText && (
+                      <span className="ml-2 text-xs text-gray-500">{dateRangeText}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            }) : (
+              <div className="text-xs text-slate-500 italic">No all-day events</div>
+            )}
+          </div>
         </div>
-
+  
         <div className="grid" style={{ gridTemplateColumns: "80px 1fr" }}>
           <div className="relative bg-slate-50">
             {hours.map((hour) => (
@@ -990,13 +1439,13 @@ const removeFormParticipant = (email: string) => {
           <div
             className={`relative border-l border-slate-200 ${isToday ? 'bg-indigo-50/20' : ''}`}
             style={{ height: `${totalHeight}px` }}
-            onDoubleClick={handleDayViewDoubleClick}
+            onClick={handleDayViewDoubleClick}
           >
             {hours.map((hour, i) => (
               <div
                 key={i}
                 style={{ height: `${hourHeight}px` }}
-                className="border-t border-slate-200"
+                className="border-t border-slate-200 hover:bg-slate-100 cursor-pointer"
               ></div>
             ))}
             
@@ -1019,6 +1468,7 @@ const removeFormParticipant = (email: string) => {
             })()}
             
             {layouts.map((layout) => {
+              // Find the calendar this event belongs to
               const calendar = calendars.find(cal => cal.id === layout.event.calendarId);
               
               if (!calendar) {
@@ -1031,11 +1481,21 @@ const removeFormParticipant = (email: string) => {
                   ? layout.event.color
                   : calendarColor;
                   
+              // Get event time for display
               const eventStart = new Date(layout.event.start);
               const eventEnd = layout.event.end ? new Date(layout.event.end) : 
                               new Date(eventStart.getTime() + 30 * 60000);
-              const timeRange = `${format(eventStart, 'h:mm')} - ${format(eventEnd, 'h:mm a')}`;
               
+              // Adjust time display for multi-day events
+              let timeRange = `${format(eventStart, 'h:mm')} - ${format(eventEnd, 'h:mm a')}`;
+              
+              if (layout.continuesFromPrevDay) {
+                timeRange = `(continued) - ${format(eventEnd, 'h:mm a')}`;
+              } else if (layout.continuesNextDay) {
+                timeRange = `${format(eventStart, 'h:mm')} - (continues)`;
+              }
+              
+              // Get the right icon for the event type
               let typeIcon;
               switch(layout.event.type) {
                 case 'arrangement':
@@ -1051,9 +1511,44 @@ const removeFormParticipant = (email: string) => {
                   typeIcon = '⏰';
               }
               
+              // Add visual indicators for multi-day events
+              let borderStyle = {};
+              
+              if (layout.isMultiDay) {
+                if (layout.continuesFromPrevDay && layout.continuesNextDay) {
+                  // Event continues both from previous day and to next day
+                  borderStyle = {
+                    borderLeft: `4px solid ${calendarColor}`,
+                    borderTop: '2px dashed #ccc',
+                    borderBottom: '2px dashed #ccc'
+                  };
+                } else if (layout.continuesFromPrevDay) {
+                  // Event continues from previous day
+                  borderStyle = {
+                    borderLeft: `4px solid ${calendarColor}`,
+                    borderTop: '2px dashed #ccc'
+                  };
+                } else if (layout.continuesNextDay) {
+                  // Event continues to next day
+                  borderStyle = {
+                    borderLeft: `4px solid ${calendarColor}`,
+                    borderBottom: '2px dashed #ccc'
+                  };
+                } else {
+                  borderStyle = {
+                    borderLeft: `4px solid ${calendarColor}`
+                  };
+                }
+              } else {
+                borderStyle = {
+                  borderLeft: `4px solid ${calendarColor}`
+                };
+              }
+              
               return (
                 <div
                   key={layout.event.id}
+                  data-event-id={layout.event.id}
                   style={{
                     top: `${layout.top}px`,
                     height: `${Math.max(layout.height, 30)}px`,
@@ -1063,11 +1558,12 @@ const removeFormParticipant = (email: string) => {
                     marginLeft: "5px",
                     padding: "6px 8px",
                     backgroundColor: `${eventBgColor}15`,
-                    borderLeft: `4px solid ${calendarColor}`,
+                    ...borderStyle
                   }}
                   className="rounded-md shadow-sm overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-md group"
                   title={layout.event.title}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setSelectedEventId(parseInt(layout.event.id));
                     setShowEventDetailModal(true);
                   }}
@@ -1075,6 +1571,11 @@ const removeFormParticipant = (email: string) => {
                   <div className="font-semibold text-slate-800 truncate flex items-center">
                     <span className="mr-1">{typeIcon}</span>
                     {layout.event.title}
+                    {layout.isMultiDay && (
+                      <span className="ml-1 text-xs bg-indigo-100 text-indigo-800 px-1 rounded">
+                        multi-day
+                      </span>
+                    )}
                   </div>
                   <div className="text-slate-500 text-xs">{timeRange}</div>
                   {layout.height > 60 && layout.event.description && (
@@ -2151,21 +2652,28 @@ const renderEventDetailModal = () => {
   }
   
   const startDate = new Date(currentEvent.startedAt);
-  const endDate = new Date(currentEvent.endedAt);
-  const formattedStartDate = format(startDate, "EEE, MMM d, yyyy");
-  const formattedStartTime = format(startDate, "h:mm a");
-  const formattedEndDate = format(endDate, "EEE, MMM d, yyyy");
-  const formattedEndTime = format(endDate, "h:mm a");
-  
-  const isSameDay = format(startDate, "yyyy-MM-dd") === format(endDate, "yyyy-MM-dd");
-  
-  const timeDisplay = isSameDay 
-    ? `${formattedStartTime} - ${formattedEndTime}` 
-    : `${formattedStartTime}, ${formattedStartDate} - ${formattedEndTime}, ${formattedEndDate}`;
-  
-  const headerDateDisplay = isSameDay
-    ? formattedStartDate
-    : `${format(startDate, "MMM d")} - ${format(endDate, "MMM d, yyyy")}`;
+const endDate = new Date(currentEvent.endedAt);
+const formattedStartDate = format(startDate, "EEE, MMM d, yyyy");
+const formattedStartTime = format(startDate, "h:mm a");
+const formattedEndDate = format(endDate, "EEE, MMM d, yyyy");
+const formattedEndTime = format(endDate, "h:mm a");
+
+const isSameDay = format(startDate, "yyyy-MM-dd") === format(endDate, "yyyy-MM-dd");
+const isMultiDayEvent = !isSameDay;
+
+// Time display logic
+let timeDisplay = '';
+if (isSameDay) {
+  timeDisplay = `${formattedStartTime} - ${formattedEndTime}, ${formattedStartDate}`;
+} else {
+  // For multi-day events, show complete date and time information
+  timeDisplay = `From ${formattedStartTime}, ${formattedStartDate} to ${formattedEndTime}, ${formattedEndDate}`;
+}
+
+// Create date range for header display
+const headerDateDisplay = isSameDay
+  ? formattedStartDate
+  : `${format(startDate, "MMM d")} - ${format(endDate, "MMM d, yyyy")}`;
   
   const eventColor = currentEvent.color || eventCalendar?.color || "#4CAF50";
   
@@ -2264,6 +2772,14 @@ const renderEventDetailModal = () => {
                   No description provided
                 </div>
               )}
+              {isMultiDayEvent && (
+  <div className="mb-4 bg-indigo-50 rounded-md p-3 flex items-center">
+    <span className="text-indigo-600 font-medium mr-2">📆 Multi-day event</span>
+    <span className="text-sm text-indigo-700">
+      {`Duration: ${differenceInDays(endDate, startDate) + 1} days`}
+    </span>
+  </div>
+)}
               
               <div className="space-y-4">
                 <div className="flex items-center">
