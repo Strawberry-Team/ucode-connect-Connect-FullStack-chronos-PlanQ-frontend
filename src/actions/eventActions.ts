@@ -3,7 +3,7 @@ import { EventActionTypes } from '../reducers/eventReducer';
 import eventService from '../services/eventService';
 import { CreateEventPayload, UpdateEventPayload } from '../types/eventTypes';
 import { AppDispatch } from "../store";
-// Fetch events for a calendar
+
 export const getCalendarEvents = (calendarId: number, userId: number) => async (dispatch: Dispatch) => {
   try {
     dispatch({ type: EventActionTypes.FETCH_EVENTS_REQUEST });
@@ -28,7 +28,6 @@ export const getCalendarEvents = (calendarId: number, userId: number) => async (
   }
 };
 
-// Fetch a specific event
 export const getEvent = (eventId: number) => async (dispatch: Dispatch) => {
   try {
     dispatch({ type: EventActionTypes.FETCH_EVENT_REQUEST });
@@ -53,7 +52,6 @@ export const getEvent = (eventId: number) => async (dispatch: Dispatch) => {
   }
 };
 
-// Create a new event
 export const createEvent = (eventData: CreateEventPayload) => async (dispatch: Dispatch) => {
   try {
     dispatch({ type: EventActionTypes.CREATE_EVENT_REQUEST });
@@ -78,7 +76,6 @@ export const createEvent = (eventData: CreateEventPayload) => async (dispatch: D
   }
 };
 
-// Update an event
 export const updateEvent = (eventId: number, eventData: UpdateEventPayload) => async (dispatch: Dispatch) => {
   try {
     dispatch({ type: EventActionTypes.UPDATE_EVENT_REQUEST });
@@ -103,7 +100,6 @@ export const updateEvent = (eventId: number, eventData: UpdateEventPayload) => a
   }
 };
 
-// Delete an event
 export const deleteEvent = (eventId: number) => async (dispatch: Dispatch) => {
   try {
     dispatch({ type: EventActionTypes.DELETE_EVENT_REQUEST });
@@ -128,11 +124,9 @@ export const deleteEvent = (eventId: number) => async (dispatch: Dispatch) => {
   }
 };
 
-// Add participant to event
 export const addEventParticipant = (eventId: number, calendarId: number, email: string) => async (dispatch: Dispatch) => {
   try {
     console.log(`Finding user with email ${email}`);
-    // First find the user by email
     const users = await eventService.findUserByEmail(email);
     if (!users || users.length === 0) {
       console.error('User not found for email:', email);
@@ -142,11 +136,9 @@ export const addEventParticipant = (eventId: number, calendarId: number, email: 
     const userId = users.id;
     console.log(`Found user ${userId}, adding as participant to event ${eventId}`);
     
-    // Then add the participant
     const result = await eventService.addParticipant(eventId, calendarId, userId);
     console.log('Participant added successfully:', result);
     
-    // Refresh the event to get updated data
     dispatch(getEvent(eventId));
     
     return result;
@@ -156,14 +148,12 @@ export const addEventParticipant = (eventId: number, calendarId: number, email: 
   }
 };
 
-// Update participant status or color
 export const updateEventParticipant = (eventId: number, calendarMemberId: number, data: { responseStatus?: string, color?: string }) => async (dispatch: Dispatch) => {
   try {
     console.log(`Updating participant ${calendarMemberId} for event ${eventId} with data:`, data);
     const result = await eventService.updateParticipant(eventId, calendarMemberId, data);
     console.log('Participant updated successfully:', result);
     
-    // Refresh the event to get updated data
     dispatch(getEvent(eventId));
     
     return result;
@@ -173,14 +163,12 @@ export const updateEventParticipant = (eventId: number, calendarMemberId: number
   }
 };
 
-// Remove participant from event
 export const removeEventParticipant = (eventId: number, calendarMemberId: number) => async (dispatch: Dispatch) => {
   try {
     console.log(`Removing participant ${calendarMemberId} from event ${eventId}`);
     await eventService.removeParticipant(eventId, calendarMemberId);
     console.log('Participant removed successfully');
     
-    // Refresh the event to get updated data
     dispatch(getEvent(eventId));
     
     return true;
@@ -195,16 +183,12 @@ export const confirmEventParticipation = (
   token: string
 ) => async (dispatch: AppDispatch) => {
   try {
-    // dispatch(setLoading(true)); // Раскомментируйте, если используете индикатор загрузки
+    // dispatch(setLoading(true));
     const data = await eventService.confirmEventParticipation(eventId, calendarMemberId, token);
-    // dispatch(setLoading(false)); // Раскомментируйте, если используете индикатор загрузки
+    // dispatch(setLoading(false));
     return data;
   } catch (error: any) {
-    // dispatch(
-    //   setError(
-    //     error.response?.data?.message || "Event participation confirmation failed"
-    //   )
-    // );
+   
     throw error;
   }
 };

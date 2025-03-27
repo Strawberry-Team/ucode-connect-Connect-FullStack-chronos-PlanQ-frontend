@@ -30,22 +30,15 @@ import {
 } from "lucide-react";
 import { CalendarData } from "./CustomCalendar";
 import { getUserCalendars } from "../actions/calendarActions";
-// Add these utility functions
-/**
- * Converts a local date to UTC for sending to the server
- */
+
 const localToUTC = (date: Date): string => {
   return date.toISOString();
 };
 
-/**
- * Formats a UTC date string for datetime-local input
- */
 function formatDateForInput(dateString: string): string {
   if (!dateString) return "";
   const date = new Date(dateString);
   
-  // Format to local datetime string in the format YYYY-MM-DDThh:mm
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -55,7 +48,6 @@ function formatDateForInput(dateString: string): string {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
-// Predefined colors for the color picker
 const predefinedColors = [
   "#4285F4", "#DB4437", "#F4B400", "#0F9D58", 
   "#AB47BC", "#00ACC1", "#FF7043", "#9E9D24",
@@ -68,12 +60,10 @@ const EventCreatePage: React.FC = () => {
   const authUser = useSelector((state: RootState) => state.auth.user);
   const { calendars = [] } = useSelector((state: RootState) => state.calendar || {});
   
-  // Form data state
   const [formParticipants, setFormParticipants] = useState<{email: string, id?: number}[]>([]);
   const [newParticipantEmail, setNewParticipantEmail] = useState("");
   const [isSearchingUser, setIsSearchingUser] = useState(false);
   
-  // Initialize event form data
   const [eventFormData, setEventFormData] = useState<{
     name: string;
     description: string;
@@ -95,21 +85,17 @@ const EventCreatePage: React.FC = () => {
     calendarId: 0,
   });
 
-  // Initialize with default calendar and current time
   useEffect(() => {
-    console.log("Calendars loaded:", calendars); // Add this debug log
+    console.log("Calendars loaded:", calendars);
     
     if (calendars && calendars.length > 0) {
-      // Find default calendar (non-holiday)
       const defaultCalendar = calendars.find(cal => cal.calendarType !== "holiday") || calendars[0];
-      console.log("Default calendar selected:", defaultCalendar); // Add this debug log
+      console.log("Default calendar selected:", defaultCalendar);
       
-      // Set current time for start and 30min later for end
       const now = new Date();
       const later = new Date(now);
       later.setMinutes(now.getMinutes() + 30);
       
-      // Handle both direct and nested structures
       const calendarId = defaultCalendar.calendarId || 
                         (defaultCalendar.calendar && defaultCalendar.calendar.id) || 
                         0;
@@ -126,11 +112,9 @@ const EventCreatePage: React.FC = () => {
         calendarId: calendarId,
       });
       
-      // Mark calendars as loaded
       setCalendarsLoading(false);
     } else if (calendars && calendars.length === 0) {
-      // If we have an empty array, it means calendars have been loaded but user has none
-      console.log("No calendars found"); // Add this debug log
+      console.log("No calendars found");
       setCalendarsLoading(false);
     }
   }, [calendars]);
@@ -146,9 +130,7 @@ const EventCreatePage: React.FC = () => {
     }
   }, [authUser, dispatch]);
 
-  // Add a loading state for calendars
 const [calendarsLoading, setCalendarsLoading] = useState(true);
-  // Function to search users by email
   const searchUserByEmail = async (email: string) => {
     if (!email.trim()) return null;
     
@@ -167,44 +149,36 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
     }
   };
 
-  // Function to add participant to form
   const addFormParticipant = async () => {
     if (!newParticipantEmail.trim()) return;
     
-    // Check if this email is already in the list
     if (formParticipants.some(p => p.email === newParticipantEmail.trim())) {
       alert("This email is already added to participants");
       return;
     }
     
-    // Search for the user
     const user = await searchUserByEmail(newParticipantEmail);
     if (!user) {
       alert("No user found with this email");
       return;
     }
     
-    // Add to participants list
     setFormParticipants([...formParticipants, {
       email: newParticipantEmail,
       id: user.id
     }]);
     
-    // Clear the input
     setNewParticipantEmail("");
   };
 
-  // Function to remove participant from form
   const removeFormParticipant = (email: string) => {
     setFormParticipants(formParticipants.filter(p => p.email !== email));
   };
 
-  // Function to handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
-      // Create event payload
       const createPayload: CreateEventPayload = {
         name: eventFormData.name,
         description: eventFormData.description,
@@ -218,35 +192,29 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
         calendarId: eventFormData.calendarId
       };
       
-      // Add priority for task type
       if (eventFormData.type === EventType.TASK && eventFormData.priority) {
         createPayload.priority = eventFormData.priority;
       }
       
-      // Add participant IDs for arrangement type
       if (eventFormData.type === EventType.ARRANGEMENT && formParticipants.length > 0) {
         createPayload.participantIds = formParticipants
           .map(p => p.id)
           .filter(Boolean) as number[];
       }
       
-      // Create event
       const newEvent = await dispatch(createEvent(createPayload));
       console.log("New event created:", newEvent);
       
-      // Refresh calendar events
       if (authUser?.id) {
         await dispatch(getCalendarEvents(eventFormData.calendarId, authUser.id));
       }
       
-      // Navigate back to calendar
       navigate("/");
     } catch (error) {
       console.error("Error creating event:", error);
     }
   };
 
-  // Find selected calendar
   const selectedCalendar = eventFormData.calendarId ? 
   calendars.find(cal => 
     (cal.calendarId === eventFormData.calendarId) || 
@@ -254,7 +222,6 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
   ) : 
   null;
   
-  // Get event type styling
   let typeIcon;
   let typeColor;
   let typeBgColor;
@@ -289,7 +256,6 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-3xl mx-auto">
-        {/* Header with back button */}
         <div className="mb-6 flex items-center justify-between">
           <button 
             onClick={() => navigate("/")}
@@ -299,13 +265,11 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
             Back to Calendar
           </button>
           
-          <div className="w-10"></div> {/* Empty div for centering */}
+          <div className="w-10"></div>
         </div>
         
-        {/* Event creation form */}
         <div className="bg-white rounded-lg shadow-xl overflow-hidden">
           <form onSubmit={handleSubmit}>
-            {/* Header with gradient background */}
             <div 
               className="px-6 py-5 relative overflow-hidden"
               style={{ 
@@ -313,12 +277,10 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
                 color: '#fff'
               }}
             >
-              {/* Decorative circles in background */}
               <div className="absolute -right-12 -top-10 w-32 h-32 rounded-full bg-white opacity-10"></div>
               <div className="absolute -right-5 -bottom-20 w-40 h-40 rounded-full bg-white opacity-5"></div>
               
               <div className="relative z-10">
-                {/* Event type badge */}
                 <div className="flex items-center gap-2 mb-4">
                   <span className={`px-2.5 py-1 text-sm font-medium rounded-full ${typeBgColor} ${typeColor}`}>
                     {typeLabel}
@@ -332,7 +294,6 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
                   )}
                 </div>
                 
-                {/* Title field */}
                 <input
                   type="text"
                   value={eventFormData.name}
@@ -345,10 +306,8 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
               </div>
             </div>
             
-            {/* Main form content */}
             <div className="p-6">
               <div className="space-y-6">
-                {/* Date and time section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
@@ -401,7 +360,6 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
                   </div>
                 </div>
                 
-                {/* Description */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
                     Description
@@ -415,7 +373,6 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
                   />
                 </div>
                 
-                {/* Category & Type */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
@@ -479,7 +436,6 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
                   </div>
                 </div>
                 
-                {/* Participants section - only show for arrangement type */}
                 {(eventFormData.type === EventType.ARRANGEMENT) && (
                   <div className="border-t pt-4 mt-4">
                     <div className="flex items-center justify-between mb-3">
@@ -487,7 +443,6 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
                       <div className="text-xs text-gray-500">{formParticipants.length} people</div>
                     </div>
                     
-                    {/* Add participant form */}
                     <div className="flex mb-4">
                       <div className="relative flex-1">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -518,7 +473,6 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
                       </button>
                     </div>
                     
-                    {/* Participants list */}
                     {formParticipants.length > 0 ? (
                       <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-2">
                         {formParticipants.map((participant, index) => (
@@ -542,7 +496,6 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
                   </div>
                 )}
                 
-                {/* Task-specific fields */}
                 {eventFormData.type === EventType.TASK && (
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
@@ -578,7 +531,6 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
                     </div>
                   )}
                   
-                {/* Calendar selection */}
                 <div className="space-y-2">
   <label className="block text-sm font-medium text-gray-700">
     Calendar
@@ -597,7 +549,6 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
         value={eventFormData.calendarId || ""}
         onChange={(e) => {
           const selectedCalendarId = parseInt(e.target.value);
-          // Find the calendar with this ID (either direct or nested)
           const selectedCalendarItem = calendars.find(cal => 
             (cal.calendarId === selectedCalendarId) || 
             (cal.calendar && cal.calendar.id === selectedCalendarId)
@@ -620,7 +571,6 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
         {calendars
           .filter(cal => cal.calendarType !== "holiday")
           .map((cal) => {
-            // Handle both direct and nested structures
             const id = cal.calendarId || (cal.calendar && cal.calendar.id);
             const name = (cal.calendar && cal.calendar.name) || "Untitled Calendar";
             
@@ -633,7 +583,6 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
       </select>
     )}
     
-    {/* Color indicator */}
     {!calendarsLoading && selectedCalendar && (
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
         <div 
@@ -653,7 +602,6 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
   </div>
 </div>
                 
-                {/* Color picker */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
                     Event Color
@@ -685,11 +633,10 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
                 </div>
               </div>
               
-              {/* Action buttons */}
               <div className="mt-8 flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => navigate("/")}
+                  onClick={() => navigate("/calendar")}
                   className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm"
                 >
                   Cancel
@@ -711,3 +658,4 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
 };
 
 export default EventCreatePage;
+

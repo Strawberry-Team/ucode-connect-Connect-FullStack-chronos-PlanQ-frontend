@@ -18,7 +18,6 @@ export interface CalendarData {
   role?: string;
 }
 
-// Modified props interface
 interface SidebarProps {
   calendars: CalendarData[];
   onToggleCalendar: (id: string) => void;
@@ -36,7 +35,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   authUser,
   handleLeaveCalendar
 }) => {
-  // Split calendars into "My Calendars" and "Other Calendars"
   const myCalendars = calendars.filter(
     (calendar) => String(calendar.creatorId) === String(authUser?.id)
   );
@@ -44,65 +42,64 @@ const Sidebar: React.FC<SidebarProps> = ({
     (calendar) => String(calendar.creatorId) !== String(authUser?.id)
   );
 
-  // UI state
   const [isMyCalendarsExpanded, setIsMyCalendarsExpanded] = useState(true);
   const [isOtherCalendarsExpanded, setIsOtherCalendarsExpanded] = useState(true);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
-  // Menu handlers
   const handleOpenMenu = (calendarId: string, event: React.MouseEvent) => {
     event.stopPropagation();
     setActiveMenu(calendarId === activeMenu ? null : calendarId);
   };
 
-  // Menu options renderer
-  const renderMenuOptions = (calendar: CalendarData) => {
-    const role = calendar.role?.toLowerCase();
-  
-    return (
-      <div className="absolute right-0 top-0 z-10 mt-10 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 divide-y divide-gray-100">
-        <div className="px-4 py-3 border-b">
-          <h3 className="text-sm font-medium text-gray-700 truncate">
-            {calendar.title || "Untitled"}
-          </h3>
-          <p className="text-xs text-gray-500 mt-1 truncate">
-            {calendar.description || "No description"}
-          </p>
-        </div>
-        
-        <div className="py-1">
-          {String(calendar.creatorId) === String(authUser?.id) ? (
-            // Current user is the creator
-            <>
-              <button
-                onClick={() => {
-                  setActiveMenu(null);
-                  openModal({
-                    type: 'edit',
-                    calendarId: calendar.id,
-                    calendarTitle: calendar.title,
-                    calendarDescription: calendar.description
-                  });
-                }}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                <Edit2 className="mr-2" size={16} />
-                <span>Edit details</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveMenu(null);
-                  openModal({
-                    type: 'color',
-                    calendarId: calendar.id,
-                    calendarColor: calendar.color
-                  });
-                }}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                <Palette className="mr-2" size={16} />
-                <span>Change color</span>
-              </button>
+const renderMenuOptions = (calendar: CalendarData) => {
+  const role = calendar.role?.toLowerCase();
+  const isMainOrHoliday = calendar.calendarType === "main" || calendar.calendarType === "holiday";
+
+  return (
+    <div className="absolute right-0 top-0 z-10 mt-10 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 divide-y divide-gray-100">
+      <div className="px-4 py-3 border-b">
+        <h3 className="text-sm font-medium text-gray-700 truncate">
+          {calendar.title || "Untitled"}
+        </h3>
+        <p className="text-xs text-gray-500 mt-1 truncate">
+          {calendar.description || "No description"}
+        </p>
+      </div>
+      
+      <div className="py-1">
+        {String(calendar.creatorId) === String(authUser?.id) ? (
+          <>
+            <button
+              onClick={() => {
+                setActiveMenu(null);
+                openModal({
+                  type: 'edit',
+                  calendarId: calendar.id,
+                  calendarTitle: calendar.title,
+                  calendarDescription: calendar.description
+                });
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Edit2 className="mr-2" size={16} />
+              <span>Edit details</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveMenu(null);
+                openModal({
+                  type: 'color',
+                  calendarId: calendar.id,
+                  calendarColor: calendar.color
+                });
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Palette className="mr-2" size={16} />
+              <span>Change color</span>
+            </button>
+            
+            {!isMainOrHoliday && (
               <button
                 onClick={() => {
                   setActiveMenu(null);
@@ -116,6 +113,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <UserPlus className="mr-2" size={16} />
                 <span>Sharing</span>
               </button>
+            )}
+            
+            {!isMainOrHoliday && (
               <button
                 onClick={() => {
                   setActiveMenu(null);
@@ -126,78 +126,41 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <Trash2 className="mr-2" size={16} />
                 <span>Delete</span>
               </button>
-            </>
-          ) : role === "owner" ? (
-            <>
-              <button
-                onClick={() => {
-                  setActiveMenu(null);
-                  openModal({
-                    type: 'edit',
-                    calendarId: calendar.id,
-                    calendarTitle: calendar.title,
-                    calendarDescription: calendar.description
-                  });
-                }}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                <Edit2 className="mr-2" size={16} />
-                <span>Edit details</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveMenu(null);
-                  openModal({
-                    type: 'color',
-                    calendarId: calendar.id,
-                    calendarColor: calendar.color
-                  });
-                }}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                <Palette className="mr-2" size={16} />
-                <span>Change color</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveMenu(null);
-                  openModal({
-                    type: 'share',
-                    calendarId: calendar.id
-                  });
-                }}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                <UserPlus className="mr-2" size={16} />
-                <span>Sharing</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveMenu(null);
-                  handleLeaveCalendar(calendar.id);
-                }}
-                className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
-              >
-                <LogOut className="mr-2" size={16} />
-                <span>Leave</span>
-              </button>
-            </>
-          ) : (role === "editor" || role === "viewer") ? (
-            <>
-              <button
-                onClick={() => {
-                  setActiveMenu(null);
-                  openModal({
-                    type: 'color',
-                    calendarId: calendar.id,
-                    calendarColor: calendar.color
-                  });
-                }}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                <Palette className="mr-2" size={16} />
-                <span>Change color</span>
-              </button>
+            )}
+          </>
+        ) : role === "owner" ? (
+          <>
+            <button
+              onClick={() => {
+                setActiveMenu(null);
+                openModal({
+                  type: 'edit',
+                  calendarId: calendar.id,
+                  calendarTitle: calendar.title,
+                  calendarDescription: calendar.description
+                });
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Edit2 className="mr-2" size={16} />
+              <span>Edit details</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveMenu(null);
+                openModal({
+                  type: 'color',
+                  calendarId: calendar.id,
+                  calendarColor: calendar.color
+                });
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Palette className="mr-2" size={16} />
+              <span>Change color</span>
+            </button>
+            
+            {!isMainOrHoliday && (
               <button
                 onClick={() => {
                   setActiveMenu(null);
@@ -211,33 +174,37 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <UserPlus className="mr-2" size={16} />
                 <span>Sharing</span>
               </button>
-              <button
-                onClick={() => {
-                  setActiveMenu(null);
-                  handleLeaveCalendar(calendar.id);
-                }}
-                className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
-              >
-                <LogOut className="mr-2" size={16} />
-                <span>Leave</span>
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => {
-                  setActiveMenu(null);
-                  openModal({
-                    type: 'color',
-                    calendarId: calendar.id,
-                    calendarColor: calendar.color
-                  });
-                }}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                <Palette className="mr-2" size={16} />
-                <span>Change color</span>
-              </button>
+            )}
+            
+            <button
+              onClick={() => {
+                setActiveMenu(null);
+                handleLeaveCalendar(calendar.id);
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
+            >
+              <LogOut className="mr-2" size={16} />
+              <span>Leave</span>
+            </button>
+          </>
+        ) : (role === "editor" || role === "viewer") ? (
+          <>
+            <button
+              onClick={() => {
+                setActiveMenu(null);
+                openModal({
+                  type: 'color',
+                  calendarId: calendar.id,
+                  calendarColor: calendar.color
+                });
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Palette className="mr-2" size={16} />
+              <span>Change color</span>
+            </button>
+            
+            {!isMainOrHoliday && (
               <button
                 onClick={() => {
                   setActiveMenu(null);
@@ -251,14 +218,58 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <UserPlus className="mr-2" size={16} />
                 <span>Sharing</span>
               </button>
-            </>
-          )}
-        </div>
+            )}
+            
+            <button
+              onClick={() => {
+                setActiveMenu(null);
+                handleLeaveCalendar(calendar.id);
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
+            >
+              <LogOut className="mr-2" size={16} />
+              <span>Leave</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => {
+                setActiveMenu(null);
+                openModal({
+                  type: 'color',
+                  calendarId: calendar.id,
+                  calendarColor: calendar.color
+                });
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Palette className="mr-2" size={16} />
+              <span>Change color</span>
+            </button>
+            
+            {!isMainOrHoliday && (
+              <button
+                onClick={() => {
+                  setActiveMenu(null);
+                  openModal({
+                    type: 'share',
+                    calendarId: calendar.id
+                  });
+                }}
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <UserPlus className="mr-2" size={16} />
+                <span>Sharing</span>
+              </button>
+            )}
+          </>
+        )}
       </div>
-    );
-  };
+    </div>
+  );
+};
 
-  // Calendar item renderer
   const renderCalendarItem = (calendar: CalendarData) => (
     <li
       key={calendar.id}
@@ -293,7 +304,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* My Calendars Section */}
       {myCalendars.length > 0 && (
         <div>
           <button 
@@ -314,7 +324,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {/* Other Calendars Section */}
       {otherCalendars.length > 0 && (
         <div>
           <button 
@@ -350,3 +359,4 @@ const Sidebar: React.FC<SidebarProps> = ({
 };
 
 export default Sidebar;
+

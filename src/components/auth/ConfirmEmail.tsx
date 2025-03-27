@@ -35,16 +35,6 @@ function ConfirmEmail() {
         verify()
     }, [dispatch, token])
 
-    // useEffect(() => {
-    //     // Получаем CSRF токен и настраиваем axios при монтировании компонента
-    //     const initCsrf = async () => {
-    //       await csrfService.fetchCsrfToken();
-    //       csrfService.setupAxiosInterceptors();
-    //     };
-    
-    //     initCsrf();
-    //   }, []);
-
     const handleConfirm = () => {
         navigate('/login')
     }

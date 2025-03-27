@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useParams, useNavigate } from "react-router-dom";
 import { AppDispatch } from "./../store";
-import { confirmCalendar } from "./../actions/calendarActions"; // новый экшен для подтверждения календаря
+import { confirmCalendar } from "./../actions/calendarActions";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Alert, AlertDescription } from "./ui/alert";
@@ -37,7 +37,7 @@ function ConfirmCalendar() {
   }, [dispatch, token]);
 
   const handleConfirm = () => {
-    navigate("/"); // Направляем пользователя на страницу с календарями
+    navigate("/calendar");
   };
 
   return (

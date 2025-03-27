@@ -42,7 +42,7 @@ function ConfirmEventParticipation() {
   }, [dispatch, eventId, calendarMemberId, token]);
 
   const handleConfirm = () => {
-    navigate("/calendars"); // Направляем пользователя на страницу с календарями
+    navigate("/calendar");
   };
 
   return (

@@ -1,4 +1,3 @@
-// src/services/csrfService.ts
 import axios from 'axios';
 
 const API_URL = 'http://localhost:3000/api/auth';
@@ -10,10 +9,9 @@ class CsrfService {
         try {
 
             const response = await axios.get(`${API_URL}/csrf-token`, {
-                withCredentials: true // Важно для работы с куки
+                withCredentials: true 
             });
 
-            // Токен может быть в заголовке или в теле ответа
             this.csrfToken = response.data.csrfToken;
             return this.csrfToken;
         } catch (error) {
@@ -28,11 +26,8 @@ class CsrfService {
         return this.csrfToken;
     }
 
-    // Настройка axios для автоматического добавления токена
     setupAxiosInterceptors(): void {
         axios.interceptors.request.use(config => {
-            // Добавляем токен только к небезопасным методам
-            // this.fetchCsrfToken();
             if (
                 this.csrfToken &&
                 ['POST', 'PUT', 'PATCH', 'DELETE'].includes(config.method?.toUpperCase() || '')
@@ -46,3 +41,4 @@ class CsrfService {
 }
 
 export default new CsrfService();
+

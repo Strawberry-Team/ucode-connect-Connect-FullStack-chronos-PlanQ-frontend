@@ -70,7 +70,6 @@ const Profile: React.FC = () => {
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetMethod, setResetMethod] = useState<"email" | "oldPassword">("email");
 
-  // Создаём экземпляр формы для восстановления через старый пароль
   const resetForm = useForm<ResetFormValues>({
     defaultValues: {
       oldPassword: "",
@@ -196,7 +195,6 @@ const Profile: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 py-12 px-4">
       <div className="max-w-4xl mx-auto">
-        {/* Аватар и информация */}
         <div className="flex items-center gap-6 mb-8">
           <div className="relative group">
             <Avatar
@@ -231,7 +229,6 @@ const Profile: React.FC = () => {
           </div>
         </div>
 
-        {/* Основной контент профиля */}
         <Card className="bg-white shadow-lg rounded-lg">
           <CardContent className="p-6">
             {editMode ? (
@@ -341,7 +338,6 @@ const Profile: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Кнопки профиля */}
         <div className="flex justify-between mt-4">
           <Button
             onClick={() => setEditMode(!editMode)}
@@ -352,7 +348,7 @@ const Profile: React.FC = () => {
           </Button>
           <Button
             onClick={() => {
-              setResetMethod("email"); // По умолчанию вариант email
+              setResetMethod("email");
               setShowResetModal(true);
             }}
             className="bg-red-600 text-white hover:bg-red-700"
@@ -363,7 +359,6 @@ const Profile: React.FC = () => {
         </div>
       </div>
 
-      {/* Модальное окно восстановления пароля */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">

@@ -201,3 +201,4 @@ const eventReducer = (state = initialState, action: EventAction): EventState => 
 };
 
 export default eventReducer;
+

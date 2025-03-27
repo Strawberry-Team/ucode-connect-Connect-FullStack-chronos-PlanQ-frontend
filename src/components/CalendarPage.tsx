@@ -26,7 +26,6 @@ const predefinedColors = [
   "#5C6BC0", "#26A69A", "#EC407A", "#FFA726",
 ];
 
-// Modal data interface
 interface ModalData {
   type: 'create' | 'edit' | 'color' | 'share' | 'delete' | null;
   calendarId?: string;
@@ -44,12 +43,10 @@ const CalendarPage: React.FC = () => {
   const [sharedCalendarId, setSharedCalendarId] = useState<string>("");
   const [sharedUsers, setSharedUsers] = useState<any[]>([]);
   
-  // Calendar data from Redux
   const { calendars, loading, error } = useSelector(
     (state: RootState) => state.calendar
   ) || { calendars: [], loading: false, error: null };
   
-  // Events data from Redux
   const { events: reduxEvents } = useSelector(
     (state: RootState) => state.event
   ) || { events: [] };
@@ -58,50 +55,41 @@ const CalendarPage: React.FC = () => {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [calendarEventsMap, setCalendarEventsMap] = useState<Record<string, any[]>>({});
   
-  // Modal state
   const [modalData, setModalData] = useState<ModalData>({ type: null });
 
-  // New calendar form state
   const [newCalendarTitle, setNewCalendarTitle] = useState("");
   const [newCalendarDescription, setNewCalendarDescription] = useState("");
   const [newCalendarColor, setNewCalendarColor] = useState("#4285F4");
   
-  // Edit calendar form state
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   
-  // Color picker state
   const [customColor, setCustomColor] = useState("#4285F4");
   
-  // Shared calendar state
   const [sharedUserEmail, setSharedUserEmail] = useState("");
   const [sharedRole, setSharedRole] = useState<"owner" | "editor" | "viewer">("viewer");
   const [isSharedLoading, setIsSharedLoading] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editedRole, setEditedRole] = useState<"owner" | "editor" | "viewer">("viewer");
 
-  // First effect to fetch user calendars
   useEffect(() => {
     if (authUser && authUser.id) {
       dispatch(getUserCalendars(String(authUser.id)));
     }
   }, [dispatch, authUser]);
 
-  // New effect to fetch events for all calendars
   useEffect(() => {
     const fetchEventsForCalendars = async () => {
       if (authUser && authUser.id && calendars.length > 0) {
         const eventsMap: Record<string, any[]> = {};
         
         for (const cal of calendars) {
-          // Skip holiday calendars as they're handled separately
           if (cal.calendarType !== "holiday" && cal.calendarId) {
             try {
               console.log(`Fetching events for calendar ${cal.calendarId}`);
               const calendarEvents = await dispatch(getCalendarEvents(cal.calendarId, authUser.id));
               console.log(`Received events for calendar ${cal.calendarId}:`, calendarEvents);
               
-              // Store events by calendar ID
               eventsMap[cal.calendarId] = calendarEvents;
             } catch (error) {
               console.error(`Failed to fetch events for calendar ${cal.calendarId}:`, error);
@@ -118,13 +106,11 @@ const CalendarPage: React.FC = () => {
     }
   }, [calendars, authUser, dispatch]);
 
-  // Holiday fetching effect remains the same
   useEffect(() => {
     const fetchHolidays = async () => {
       try {
         const data: any[] = await calendarService.getHolidays();
         console.log('parapara',data);
-        // Find the holiday calendar to get its color
         const holidayCalendar = calendars.find(cal => cal.calendarType === "holiday");
         const holidayColor = holidayCalendar?.color || "#FF7043";
         
@@ -152,7 +138,6 @@ const CalendarPage: React.FC = () => {
     fetchHolidays();
   }, [calendars]);
 
-  // Updated formattedCalendars function to properly transform API events
   const formattedCalendars: CalendarData[] = useMemo(() => {
     console.log("Formatting calendars with events:", calendarEventsMap);
     
@@ -161,21 +146,17 @@ const CalendarPage: React.FC = () => {
       const calId = item.calendarId || item.id;
       
       if (item.calendarType === "holiday") {
-        // Holidays are already properly formatted
         calendarEvents = holidayEvents;
       } else if (calendarEventsMap[calId] && Array.isArray(calendarEventsMap[calId])) {
-        // Process regular events from our events map
         calendarEvents = calendarEventsMap[calId].map((participation: any) => {
           const event = participation.event;
           if (!event) return null;
-          
-          // The start and end times are stored in UTC, we keep them as is
-          // The date-fns functions and date constructors will handle local time display
+
           return {
             id: String(event.id),
             title: event.name,
-            start: event.startedAt,  // Keep UTC string, conversion happens during display
-            end: event.endedAt,      // Keep UTC string, conversion happens during display
+            start: event.startedAt,
+            end: event.endedAt,
             description: event.description,
             calendarId: String(calId),
             type: event.type,
@@ -184,9 +165,9 @@ const CalendarPage: React.FC = () => {
             priority: event.task?.priority,
             isCompleted: event.task?.isCompleted,
             creatorId: event.creatorId,
-            participations: [participation] // Store the original participation data
+            participations: [participation]
           };
-        }).filter(Boolean); // Remove null entries
+        }).filter(Boolean);
       }
       
       return {
@@ -205,13 +186,10 @@ const CalendarPage: React.FC = () => {
     });
   }, [calendars, holidayEvents, calendarEventsMap]);
 
-  // Calculate all events (including visible events from all calendars)
   const allEvents: CalendarEvent[] = useMemo(() => {
-    // Создаем Set для отслеживания уже добавленных id событий
     const addedEventIds = new Set<string>();
     const result: CalendarEvent[] = [];
     
-    // Сначала обрабатываем события из общих (additional) календарей
     const additionalCalendars = formattedCalendars
       .filter(cal => 
         cal.isVisible && 
@@ -220,7 +198,6 @@ const CalendarPage: React.FC = () => {
         cal.calendarType !== 'main'
       );
       
-    // Добавляем события из additional календарей
     for (const cal of additionalCalendars) {
       for (const event of cal.events || []) {
         if (event && event.id) {
@@ -230,7 +207,6 @@ const CalendarPage: React.FC = () => {
       }
     }
     
-    // Затем обрабатываем события из основных (main) календарей
     const mainCalendars = formattedCalendars
       .filter(cal => 
         cal.isVisible && 
@@ -239,10 +215,8 @@ const CalendarPage: React.FC = () => {
         cal.calendarType === 'main'
       );
       
-    // Добавляем только те события из main календарей, которые еще не были добавлены
     for (const cal of mainCalendars) {
       for (const event of cal.events || []) {
-        // Проверяем, не было ли это событие уже добавлено
         if (event && event.id && !addedEventIds.has(event.id)) {
           result.push(event);
         }
@@ -254,16 +228,13 @@ const CalendarPage: React.FC = () => {
   
   console.log("All events to display:", allEvents.length);
 
-  // Close modal function
   const closeModal = () => {
     setModalData({ type: null });
   };
 
-  // Open modal function
   const openModal = (data: ModalData) => {
     setModalData(data);
     
-    // Initialize form values based on modal type
     if (data.type === 'edit' && data.calendarTitle && data.calendarDescription) {
       setEditTitle(data.calendarTitle);
       setEditDescription(data.calendarDescription || "");
@@ -275,7 +246,6 @@ const CalendarPage: React.FC = () => {
     }
   };
 
-  // Handle calendar visibility toggle
   const handleToggleCalendar = (id: string) => {
     const calendar = formattedCalendars.find((cal) => cal.id === id);
     if (!calendar || !authUser || !authUser.id) return;
@@ -284,7 +254,6 @@ const CalendarPage: React.FC = () => {
     );
   };
 
-  // Add new calendar
   const handleAddCalendar = () => { 
     try {
       if (authUser && authUser.id) {
@@ -294,7 +263,6 @@ const CalendarPage: React.FC = () => {
           return;
         }
 
-        // Проверяем, что описание не длиннее 255 символов
         const trimmedDescription = newCalendarDescription.trim();
         if (trimmedDescription.length > 255) {
           setAlertMessage("Description cannot exceed 255 characters");
@@ -311,7 +279,6 @@ const CalendarPage: React.FC = () => {
         setAlertMessage("Calendar created successfully");
         closeModal();
         
-        // Reset form fields
         setNewCalendarTitle("");
         setNewCalendarDescription("");
         setNewCalendarColor("#4285F4");
@@ -322,7 +289,6 @@ const CalendarPage: React.FC = () => {
     }
   };
 
-  // Change calendar color
   const handleChangeColor = () => {
     try {
       if (!modalData.calendarId) return;
@@ -338,7 +304,6 @@ const CalendarPage: React.FC = () => {
     }
   };
 
-  // Delete calendar
   const handleDeleteCalendar = (calendarId: string, userId: string) => {
     console.log('deletIdCalendar', calendarId);
     dispatch(deleteCalendar(calendarId, userId));
@@ -346,7 +311,6 @@ const CalendarPage: React.FC = () => {
     closeModal();
   };
 
-  // Edit calendar
   const handleEditCalendar = () => { 
     try {
       if (!modalData.calendarId) return;
@@ -362,63 +326,95 @@ const CalendarPage: React.FC = () => {
     }
   };
 
-  // Add event handler (passed to CustomCalendar)
-  const handleAddEvent = async (newEvent: CalendarEvent & { deleted?: boolean }) => {
-    console.log("Event action:", newEvent.deleted ? "deletion" : "creation/update");
-    
-    // Handle both adding new events and deleting events
-    if (authUser && authUser.id && newEvent.calendarId) {
-      try {
-        const calendarId = newEvent.calendarId;
+const handleAddEvent = async (newEvent: CalendarEvent & { deleted?: boolean }) => {
+  console.log("Event action:", newEvent.deleted ? "deletion" : "creation/update");
+  
+  if (authUser && authUser.id) {
+    try {
+      const calendarId = newEvent.calendarId;
+      
+      if (newEvent.deleted) {
+        console.log(`Handling event deletion for event ID: ${newEvent.id}`);
         
-        if (newEvent.deleted) {
-          console.log(`Handling event deletion for event ID: ${newEvent.id}`);
+        const mainCalendar = formattedCalendars.find(cal => 
+          cal.calendarType === 'main' && 
+          cal.isVisible
+        );
+        
+        setCalendarEventsMap(prevMap => {
+          const newMap = { ...prevMap };
           
-          // Immediately update the UI by removing the deleted event 
-          // This happens before the API call to make the UI feel responsive
-          setCalendarEventsMap(prevMap => {
-            // Make a shallow copy of the previous state
-            const newMap = { ...prevMap };
-            
-            // If we have events for this calendar
-            if (newMap[calendarId]) {
-              // Filter out the deleted event
-              newMap[calendarId] = newMap[calendarId].filter(participation => 
-                participation.event && String(participation.event.id) !== String(newEvent.id)
-              );
-            }
-            
-            return newMap;
-          });
+          if (newMap[calendarId]) {
+            newMap[calendarId] = newMap[calendarId].filter(participation => 
+              participation.event && String(participation.event.id) !== String(newEvent.id)
+            );
+          }
           
-          // Then also fetch the updated list from the API (for consistency)
-          const updatedEvents = await dispatch(getCalendarEvents(calendarId, authUser.id));
-          console.log(`Updated events list after deletion:`, updatedEvents);
+          if (mainCalendar && mainCalendar.id && newMap[mainCalendar.id]) {
+            newMap[mainCalendar.id] = newMap[mainCalendar.id].filter(participation => 
+              participation.event && String(participation.event.id) !== String(newEvent.id)
+            );
+          }
           
-          // Update the state with the server response 
-          // (this makes sure our local state matches the server)
+          return newMap;
+        });
+        
+        const updatedEvents = await dispatch(getCalendarEvents(calendarId, authUser.id));
+        console.log(`Updated events list after deletion:`, updatedEvents);
+        
+        if (mainCalendar && mainCalendar.id) {
+          console.log(`Updating main calendar ${mainCalendar.id} after deletion`);
+          const mainEvents = await dispatch(getCalendarEvents(mainCalendar.id, authUser.id));
+          
+          setCalendarEventsMap(prevMap => ({
+            ...prevMap,
+            [calendarId]: updatedEvents,
+            [mainCalendar.id]: mainEvents
+          }));
+        } else {
           setCalendarEventsMap(prevMap => ({
             ...prevMap,
             [calendarId]: updatedEvents
           }));
+        }
+      } else {
+        console.log(`Refreshing events for calendar ${calendarId}`);
+        const events = await dispatch(getCalendarEvents(calendarId, authUser.id));
+        
+        const mainCalendar = formattedCalendars.find(cal => 
+          cal.calendarType === 'main' && 
+          cal.isVisible
+        );
+        
+        if (mainCalendar && mainCalendar.id) {
+          if (calendarId !== mainCalendar.id) {
+            console.log(`Also refreshing main calendar ${mainCalendar.id}`);
+            const mainEvents = await dispatch(getCalendarEvents(mainCalendar.id, authUser.id));
+            
+            setCalendarEventsMap(prevMap => ({
+              ...prevMap,
+              [calendarId]: events,
+              [mainCalendar.id]: mainEvents
+            }));
+          } else {
+            setCalendarEventsMap(prevMap => ({
+              ...prevMap,
+              [calendarId]: events
+            }));
+          }
         } else {
-          // For new events or updates, just fetch from the API
-          console.log(`Refreshing events for calendar ${calendarId}`);
-          const events = await dispatch(getCalendarEvents(calendarId, authUser.id));
-          
-          // Update the calendarEventsMap with the new events
           setCalendarEventsMap(prevMap => ({
             ...prevMap,
             [calendarId]: events
           }));
         }
-      } catch (error) {
-        console.error("Error handling event action:", error);
       }
+    } catch (error) {
+      console.error("Error handling event action:", error);
     }
-  };
+  }
+};
 
-  // Fetch users that have access to a calendar
   const fetchSharedUsers = async (calendarId: string) => {
     try {
       const data = await dispatch(getCalendarUsers(calendarId));
@@ -430,7 +426,6 @@ const CalendarPage: React.FC = () => {
     }
   };
 
-  // Add user to calendar
   const handleAddSharedUser = async () => {
     if (!sharedUserEmail.trim() || !sharedCalendarId) return;
   
@@ -440,17 +435,14 @@ const CalendarPage: React.FC = () => {
       const result = await dispatch(addCalendarUser(sharedCalendarId, payload));
       
       if (result && result.error) {
-        // If error object returned, show alert with error message
         setAlertMessage("Failed to add user: " + result.error);
       } else {
         setAlertMessage("User added successfully");
         fetchSharedUsers(sharedCalendarId);
-        // Reset form
         setSharedUserEmail("");
         setSharedRole("viewer");
       }
     } catch (error) {
-      // This block is unlikely to execute, but kept for safety
       setAlertMessage("Failed to add user");
       console.error("Error adding user:", error);
     } finally {
@@ -458,7 +450,6 @@ const CalendarPage: React.FC = () => {
     }
   };
   
-  // Save user role change
   const handleUserRoleSave = async (userId: string) => {
     if (!sharedCalendarId) return;
     try {
@@ -473,7 +464,6 @@ const CalendarPage: React.FC = () => {
     }
   };
 
-  // Remove user from calendar
   const handleRemoveUser = async (userId: string) => {
     if (!sharedCalendarId) return;
     try {
@@ -487,7 +477,6 @@ const CalendarPage: React.FC = () => {
     }
   };
 
-  // Leave calendar
   const handleLeaveCalendar = async (calendarId: string) => {
     if (!authUser || !authUser.id) return;
     try {
@@ -500,14 +489,12 @@ const CalendarPage: React.FC = () => {
     }
   };
 
-  // Get current calendar for shared settings
   const currentCalendar = useMemo(() => {
     return formattedCalendars.find(
       (cal: CalendarData) => String(cal.id) === String(sharedCalendarId)
     );
   }, [formattedCalendars, sharedCalendarId]);
 
-  // Render modal content
   const renderModalContent = () => {
     switch (modalData.type) {
       case 'create':
@@ -942,7 +929,6 @@ const CalendarPage: React.FC = () => {
     }
   };
 
-  // Loading state
   if (loading) return (
     <div className="flex items-center justify-center h-screen bg-gray-50">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
@@ -952,7 +938,6 @@ const CalendarPage: React.FC = () => {
   return (
     <div className="h-screen flex flex-col">
       <div className="flex flex-1 overflow-hidden">
-        {/* Mobile sidebar toggle */}
         <button 
           className="fixed bottom-4 right-4 z-50 md:hidden bg-indigo-600 text-white p-3 rounded-full shadow-lg"
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -960,7 +945,6 @@ const CalendarPage: React.FC = () => {
           {sidebarOpen ? <X /> : <CalendarClock />}
         </button>
         
-        {/* Redesigned Sidebar - now taking full left side */}
         <div className={`
           transition-all duration-300 ease-in-out
           md:relative md:block 
@@ -1017,10 +1001,10 @@ const CalendarPage: React.FC = () => {
         <Alert message={alertMessage} onClose={() => setAlertMessage(null)} />
       )}
       
-      {/* Render modals at the root level */}
       {renderModalContent()}
     </div>
   );
 };
 
 export default CalendarPage;
+

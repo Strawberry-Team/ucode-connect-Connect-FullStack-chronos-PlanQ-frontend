@@ -17,12 +17,11 @@ import CalendarPage from './components/CalendarPage';
 import ConfirmCalendar from './components/ConfirmCalendar';
 import EventCreatePage from "./components/EventCreatePage";
 import ConfirmEventParticipation from "./components/ConfirmEventParticipation";
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
 import csrfService from "@/services/csrfService.ts";
 
 function App() {
-  // Состояние для хранения данных пользователя
   const [user, setUser] = useState<{
     id: string;
     name: string;
@@ -35,29 +34,19 @@ function App() {
     isLoggedIn: true,
   });
 
-  // useEffect(() => {
-  //   // Получаем CSRF токен и настраиваем axios при монтировании компонента
-  //   const initCsrf = async () => {
-  //     await csrfService.fetchCsrfToken();
-  //     csrfService.setupAxiosInterceptors();
-  //   };
-
-  //   initCsrf();
-  // }, []);
 
   return (
     <Provider store={store}>
       <Router>
         <div className="flex flex-col min-h-screen bg-gray-100 text-gray-900">
           <ScrollToTop />
-          {/* Хедер */}
           <Header />
-          {/* Основной контент */}
           <main className="flex-1 container mx-auto px-4 py-8 pt-20">
             <Routes>
-              <Route path="/" element={
+              <Route path="/" element={<Home />} />
+              <Route path="/calendar" element={
                 <PrivateRoute>
-                    <CalendarPage user={user} />
+                  <CalendarPage user={user} />
                 </PrivateRoute>
               } />
               <Route path="/login" element={<Login />} />
@@ -65,7 +54,7 @@ function App() {
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/auth/reset-password/:token" element={<ConfirmNewPassword />} />
               <Route path="auth/confirm-email/:token" element={<ConfirmEmail />} />
-              <Route path="calendars/confirm-calendar/:token" element={<ConfirmCalendar />} />
+              <Route path="calendars/:eventId/confirm-calendar/:token" element={<ConfirmCalendar />} />
               <Route path="/calendar/create-event" element={<EventCreatePage />} />
               <Route path="/events/:eventId/calendar-members/:calendarMemberId/confirm-participation/:token" element={<ConfirmEventParticipation />} />
               <Route

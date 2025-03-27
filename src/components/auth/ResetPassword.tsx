@@ -69,13 +69,11 @@ function ResetPassword() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-      {/* Заголовок */}
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-bold text-blue-600 mb-2">PlanQ</h1>
         <div className="h-1 w-12 bg-blue-600 mx-auto rounded-full"></div>
       </div>
 
-      {/* Карточка сброса пароля */}
       <Card className="w-[400px] shadow-md bg-white">
         <CardHeader className="space-y-1 pb-4">
           <h2 className="text-2xl font-bold text-center text-gray-800">Reset Password</h2>

@@ -32,7 +32,6 @@ const calendarSlice = createSlice({
   name: "calendar",
   initialState,
   reducers: {
-    // Запрос календарей
     getCalendarsRequest: (state) => {
       state.loading = false;
       state.error = null;
@@ -48,12 +47,10 @@ const calendarSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     },
-    // Обновление календаря (в том числе изменение isVisible)
     updateCalendarRequest: (state) => {
-      state.loading = false;//утута было true и изза этого анимация загрузки появлялась которая вообще не нужна 
+      state.loading = false;
       state.error = null;
     },
-    // Новый экшен: обновление видимости календаря
     toggleCalendarVisibilitySuccess: (
       state,
       action: PayloadAction<{ calendarId: string; isVisible: boolean }>
@@ -76,7 +73,6 @@ const calendarSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     },
-    // Добавление календаря
     addCalendarRequest: (state) => {
       state.loading = false;
       state.error = null;
@@ -93,7 +89,6 @@ const calendarSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     },
-    // Удаление календаря
     deleteCalendarRequest: (state) => {
       state.loading = false;
       state.error = null;
@@ -107,7 +102,6 @@ const calendarSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     },
-    // Получение праздников
     getHolidaysRequest: (state) => {
       state.loading = false;
       state.error = null;
@@ -120,7 +114,6 @@ const calendarSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     },
-    // Получение пользователей календаря
     getCalendarUsersRequest: (state) => {
       state.loading = false;
       state.error = null;
@@ -133,7 +126,6 @@ const calendarSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     },
-    // Добавление пользователя к календарю
     addCalendarUserRequest: (state) => {
       state.loading = true;
       state.error = null;
@@ -174,3 +166,4 @@ export const {
 } = calendarSlice.actions;
 
 export default calendarSlice.reducer;
+

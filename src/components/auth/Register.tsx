@@ -15,7 +15,6 @@ import { Card, CardContent, CardHeader } from '../ui/card';
 import { Alert, AlertDescription } from '../ui/alert';
 import { ArrowRight, Mail, Lock, User, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
-// Схема валидации с использованием Zod
 const registerSchema = z
   .object({
     firstName: z
@@ -23,7 +22,6 @@ const registerSchema = z
       .min(3, 'First name is required')
       .max(100, 'First name must not exceed 100 characters')
       .regex(/^(?!-)[A-Za-z]+(?:-[A-Za-z]+)*$/, 'First name must contain only English letters and may contain hyphen (-)'),
- // Только английские буквы
     lastName: z
       .string()
       .max(100, 'Last name must not exceed 100 characters')
@@ -71,7 +69,7 @@ const Register = () => {
     },
   });
 
-  // Получение списка стран с сервера
+
   useEffect(() => {
     const fetchCountries = async () => {
       try {

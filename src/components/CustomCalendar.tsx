@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Alert from "./Alert";
 import {
   format,
   startOfMonth,
@@ -48,7 +47,8 @@ import {
   CheckSquare, 
   Clock,
   ChevronRight,
-  Plus
+  Plus,
+  LogOut
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -66,7 +66,7 @@ export interface CalendarEvent {
   isCompleted?: boolean;
   creatorId?: number;
   participations?: any[];
-  deleted?: boolean; // Add this flag for deletion notifications
+  deleted?: boolean;
 }
 
 export interface CalendarData {
@@ -92,9 +92,7 @@ const predefinedColors = [
   "#AB47BC", "#00ACC1", "#FF7043", "#9E9D24",
   "#5C6BC0", "#26A69A", "#EC407A", "#FFA726",
 ];
-/*
-  Function to calculate event positions
-*/
+
 const calculateEventPositions = (
   events: CalendarEvent[],
   startHour: number,
@@ -220,22 +218,18 @@ const eventEnd = event.end
   }).filter(Boolean) as any[];
 };
 const roundToNearestThirtyMinutes = (date: Date, roundDown: boolean = true): Date => {
-  const coeff = 1000 * 60 * 30; // 30 минут в миллисекундах
+  const coeff = 1000 * 60 * 30;
   const result = new Date(date);
   
   if (roundDown) {
-    // Округление вниз (например, 12:10 -> 12:00)
     result.setTime(Math.floor(result.getTime() / coeff) * coeff);
   } else {
-    // Округление до ближайшего (например, 12:10 -> 12:00, 12:20 -> 12:30)
     result.setTime(Math.round(result.getTime() / coeff) * coeff);
   }
   
   return result;
 };
-/*
-  Year View Component
-*/
+
 interface YearViewProps {
   year: number;
   events: CalendarEvent[];
@@ -247,22 +241,14 @@ const utcToLocal = (dateString: string): Date => {
   return date;
 };
 
-/**
- * Converts a local date to UTC for sending to the server
- */
 const localToUTC = (date: Date): string => {
   return date.toISOString();
 };
 
-/**
- * Formats a UTC date string for datetime-local input
- * Converts from UTC to local timezone first
- */
 function formatDateForInput(dateString: string): string {
   if (!dateString) return "";
   const date = new Date(dateString);
   
-  // Format to local datetime string in the format YYYY-MM-DDThh:mm
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -375,15 +361,12 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
 }) => {
   const dispatch: AppDispatch = useDispatch();
   const authUser = useSelector((state: RootState) => state.auth.user);
-  //const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const { currentEvent, loading, error } = useSelector((state: RootState) => state.event);
   
-  // Calendar view state
   const [currentView, setCurrentView] = useState<"day" | "week" | "month" | "year">("month");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   
-  // Event state
   const [showEventModal, setShowEventModal] = useState(false);
   const [showEventDetailModal, setShowEventDetailModal] = useState(false);
   const [showParticipantModal, setShowParticipantModal] = useState(false);
@@ -400,18 +383,14 @@ const navigate = useNavigate();
 const [holidayEvent, setHolidayEvent] = useState<CalendarEvent | null>(null);
 console.log('holiday zalypa', holidayEvent);
 const handleEventClick = (event: CalendarEvent) => {
-  // For holiday events
   if (event.type === "holiday") {
-    // Store the holiday event in local state
     setHolidayEvent(event);
     setShowEventDetailModal(true);
   } else {
-    // For regular events, use the existing flow
     setSelectedEventId(parseInt(event.id));
     setShowEventDetailModal(true);
   }
 };
-// 2. Add this function to search for users by email
 const searchUserByEmail = async (email: string) => {
   if (!email.trim()) return null;
   
@@ -431,17 +410,14 @@ const searchUserByEmail = async (email: string) => {
   }
 };
 
-// 3. Add this function to add a participant to the form
 const addFormParticipant = async () => {
   if (!newParticipantEmail.trim()) return;
   
-  // Check if this email is already in the list
   if (formParticipants.some(p => p.email === newParticipantEmail.trim())) {
     alert("This email is already added to participants");
     return;
   }
   
-  // Search for the user
   const user = await searchUserByEmail(newParticipantEmail);
   console.log('tyt teper', user);
   if (!user) {
@@ -451,22 +427,18 @@ const addFormParticipant = async () => {
     return;
   }
   
-  // Add to participants list
   setFormParticipants([...formParticipants, {
     email: newParticipantEmail,
     id: user.id
   }]);
   
-  // Clear the input
   setNewParticipantEmail("");
 };
 
-// 4. Add this function to remove a participant from the form
 const removeFormParticipant = (email: string) => {
   setFormParticipants(formParticipants.filter(p => p.email !== email));
 };
 
-  // Event form data
   const [eventFormData, setEventFormData] = useState<{
     id?: number;
     name: string;
@@ -492,14 +464,24 @@ const removeFormParticipant = (email: string) => {
     isEditing: false
   });
 
-  // For tracking current time
+  const roundToNearestFifteenMinutes = (date: Date, roundDirection: 'down' | 'nearest' = 'nearest'): Date => {
+    const coeff = 1000 * 60 * 15;
+    const result = new Date(date);
+    
+    if (roundDirection === 'down') {
+      result.setTime(Math.floor(result.getTime() / coeff) * coeff);
+    } else if (roundDirection === 'nearest') {
+      result.setTime(Math.round(result.getTime() / coeff) * coeff);
+    }
+    
+    return result;
+  };
+
   const [currentNow, setCurrentNow] = useState(new Date());
   
-  // Effect for debug logging incoming events
   useEffect(() => {
     console.log("Events received in CustomCalendar:", events.length);
     
-    // Log sample event to check structure
     if (events.length > 0) {
       console.log("Event sample:", events[0]);
     }
@@ -512,7 +494,6 @@ const removeFormParticipant = (email: string) => {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch event details when selected
   useEffect(() => {
     if (selectedEventId) {
       dispatch(getEvent(selectedEventId));
@@ -520,15 +501,69 @@ const removeFormParticipant = (email: string) => {
   }, [selectedEventId, dispatch]);
 
   useEffect(() => {
-    // This effect handles cases where currentEvent is directly set
-    // (like for holiday events) rather than fetched via selectedEventId
     if (currentEvent && currentEvent.type === "holiday") {
-      // No need to fetch from API - the event is already set
       console.log("Holiday event selected directly:", currentEvent);
     }
   }, [currentEvent]);
 
-  // Time grid settings
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeElement = document.activeElement;
+      const isInputActive = activeElement instanceof HTMLInputElement || 
+                            activeElement instanceof HTMLTextAreaElement ||
+                            activeElement instanceof HTMLSelectElement;
+      
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !isInputActive) {
+        e.preventDefault();
+        
+        const now = new Date();
+        const roundedStart = roundToNearestFifteenMinutes(now, 'nearest');
+        
+        const newEnd = new Date(roundedStart);
+        newEnd.setMinutes(newEnd.getMinutes() + 30);
+        
+        const defaultCalendar = calendars && calendars.length > 0 ? 
+          calendars.find(cal => cal.calendarType !== "holiday") || calendars[0] : null;
+        
+        setEventFormData({
+          ...eventFormData,
+          startedAt: roundedStart.toISOString(),
+          endedAt: newEnd.toISOString(),
+          color: defaultCalendar?.color || "#4CAF50",
+          calendarId: defaultCalendar ? parseInt(defaultCalendar.id) : 0,
+          isEditing: false
+        });
+        
+        setShowEventModal(true);
+      }
+      
+      if (e.altKey && e.key === 'e' && selectedEventId && !isInputActive) {
+        e.preventDefault();
+        handleEditEvent();
+      }
+      
+      if (e.key === 'Escape') {
+        if (showEventModal) {
+          setShowEventModal(false);
+          resetEventForm();
+        }
+        if (showEventDetailModal) {
+          setShowEventDetailModal(false);
+          setHolidayEvent(null);
+        }
+        if (showParticipantModal) {
+          setShowParticipantModal(false);
+        }
+      }
+    };
+  
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [calendars, eventFormData, selectedEventId, showEventModal, showEventDetailModal, showParticipantModal]); // Зависимости
+  
   const startHour = 0;
   const endHour = 24;
   const hourHeight = 60;
@@ -548,7 +583,6 @@ const removeFormParticipant = (email: string) => {
 
   const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  // Render week days header
   const weekdaysHeader = (
     <div className="grid grid-cols-7 gap-1 mb-2">
       {weekdays.map((day) => (
@@ -559,14 +593,12 @@ const removeFormParticipant = (email: string) => {
     </div>
   ); 
 
-  // Build month view
   while (day <= endDt) {
     for (let i = 0; i < 7; i++) {
       formattedDate = format(day, dateFormat);
       const cloneDay = day;
       const dayString = format(cloneDay, "yyyy-MM-dd");
       
-      // Filter valid events for this day
       const dayEvents = events.filter(
         (event) => {
           if (!event || !event.start) return false;
@@ -603,7 +635,6 @@ const removeFormParticipant = (email: string) => {
                 const calendar = calendars.find(cal => cal.id === event.calendarId) || { color: event.color };
                 const eventBgColor = event.color && event.color.trim() !== "" ? event.color : calendar.color;
                 const calendarColor = calendar?.color || "#3B82F6";
-                // Determine event type icon
                 let typeIcon;
                 switch(event.type) {
                   case 'arrangement':
@@ -674,7 +705,6 @@ const removeFormParticipant = (email: string) => {
 
     return (
       <div className="overflow-auto relative rounded-lg shadow-sm border border-slate-200 bg-white">
-        {/* Header for days of the week and All Day area */}
         <div className="grid grid-cols-8 sticky top-0 z-10 bg-white">
           <div className="border-b border-r border-slate-200 bg-slate-50" style={{ height: allDayHeight }}></div>
           {weekDays.map((d, idx) => {
@@ -695,7 +725,6 @@ const removeFormParticipant = (email: string) => {
           })}
         </div>
         
-        {/* All Day events area */}
         <div className="grid grid-cols-8">
           <div className="border-r border-b border-slate-200 p-2 bg-slate-50">
             <div className="text-xs font-medium text-slate-600">All Day</div>
@@ -704,7 +733,6 @@ const removeFormParticipant = (email: string) => {
             const dayStr = format(dayItem, "yyyy-MM-dd");
             const isToday = dayStr === format(new Date(), "yyyy-MM-dd");
             
-            // Filter all-day events like holidays
             const allDayEvents = events.filter(
               (event) => {
                 if (!event || !event.start) return false;
@@ -742,7 +770,6 @@ const removeFormParticipant = (email: string) => {
           })}
         </div>
         
-        {/* Time grid */}
         <div className="grid grid-cols-8 relative">
           <div className="relative bg-slate-50">
             {hours.map((hour) => (
@@ -759,7 +786,6 @@ const removeFormParticipant = (email: string) => {
             const dayStr = format(dayItem, "yyyy-MM-dd");
             const isToday = dayStr === format(new Date(), "yyyy-MM-dd");
             
-            // Filter valid events for this day (excluding holidays)
             const dayEvents = events.filter(
               (event) => {
                 if (!event || !event.start) return false;
@@ -770,7 +796,6 @@ const removeFormParticipant = (email: string) => {
             
             console.log(`Found ${dayEvents.length} events for week day ${dayStr}`);
             
-            // Calculate event positions for rendering
             const layouts = calculateEventPositions(
               dayEvents.filter(event => event && event.start),
               startHour,
@@ -792,7 +817,6 @@ const removeFormParticipant = (email: string) => {
                   ></div>
                 ))}
                 
-                {/* Current time line */}
                 {isToday && (() => {
                   const currentMinutes =
                     currentNow.getHours() * 60 + currentNow.getMinutes();
@@ -812,7 +836,6 @@ const removeFormParticipant = (email: string) => {
                 })()}
                 
                 {layouts.map((layout) => {
-                  // Find the calendar this event belongs to
                   const calendar = calendars.find(cal => cal.id === layout.event.calendarId);
                   
                   if (!calendar) {
@@ -825,11 +848,9 @@ const removeFormParticipant = (email: string) => {
                       ? layout.event.color
                       : calendarColor;
                       
-                  // Get event time for display
                   const eventStart = new Date(layout.event.start);
                   const startTime = format(eventStart, 'h:mm a');
                   
-                  // Get the right icon for the event type
                   let typeIcon;
                   switch(layout.event.type) {
                     case 'arrangement':
@@ -887,7 +908,6 @@ const removeFormParticipant = (email: string) => {
     const dayStr = format(currentDate, "yyyy-MM-dd");
     const isToday = dayStr === format(new Date(), "yyyy-MM-dd");
     
-    // Filter all-day events like holidays
     const allDayEvents = events.filter(
       (event) => {
         if (!event || !event.start) return false;
@@ -896,7 +916,6 @@ const removeFormParticipant = (email: string) => {
       }
     );
     
-    // Filter regular timed events
     const timedEvents = events.filter(
       (event) => {
         if (!event || !event.start) return false;
@@ -914,7 +933,6 @@ const removeFormParticipant = (email: string) => {
     
     const totalHeight = (endHour - startHour) * hourHeight;
     
-    // Calculate event positions for rendering
     const layouts = calculateEventPositions(
       timedEvents.filter(event => event && event.start),
       startHour,
@@ -923,7 +941,6 @@ const removeFormParticipant = (email: string) => {
 
     return (
       <div className="overflow-auto relative rounded-lg shadow-sm border border-slate-200 bg-white">
-        {/* Day header */}
         <div className={`py-4 px-6 font-medium text-center border-b ${isToday ? 'bg-indigo-50' : 'bg-slate-50'}`}>
           <span className="text-lg font-bold mr-2 text-slate-800">
             {format(currentDate, "EEEE")}
@@ -934,7 +951,6 @@ const removeFormParticipant = (email: string) => {
           </span>
         </div>
         
-        {/* All day area */}
         <div className={`border-b border-slate-200 p-3 flex items-center ${isToday ? 'bg-indigo-50/30' : 'bg-slate-50/30'}`}>
           <div className="text-sm font-medium text-slate-700 min-w-[80px]">All Day</div>
           <div className="flex space-x-2 ml-4 flex-wrap gap-2">
@@ -959,7 +975,6 @@ const removeFormParticipant = (email: string) => {
 </div>
         </div>
 
-        {/* Time grid */}
         <div className="grid" style={{ gridTemplateColumns: "80px 1fr" }}>
           <div className="relative bg-slate-50">
             {hours.map((hour) => (
@@ -985,7 +1000,6 @@ const removeFormParticipant = (email: string) => {
               ></div>
             ))}
             
-            {/* Current time line */}
             {isToday && (() => {
               const currentMinutes =
                 currentNow.getHours() * 60 + currentNow.getMinutes();
@@ -1005,7 +1019,6 @@ const removeFormParticipant = (email: string) => {
             })()}
             
             {layouts.map((layout) => {
-              // Find the calendar this event belongs to
               const calendar = calendars.find(cal => cal.id === layout.event.calendarId);
               
               if (!calendar) {
@@ -1018,13 +1031,11 @@ const removeFormParticipant = (email: string) => {
                   ? layout.event.color
                   : calendarColor;
                   
-              // Get event time for display
               const eventStart = new Date(layout.event.start);
               const eventEnd = layout.event.end ? new Date(layout.event.end) : 
                               new Date(eventStart.getTime() + 30 * 60000);
               const timeRange = `${format(eventStart, 'h:mm')} - ${format(eventEnd, 'h:mm a')}`;
               
-              // Get the right icon for the event type
               let typeIcon;
               switch(layout.event.type) {
                 case 'arrangement':
@@ -1092,7 +1103,6 @@ const removeFormParticipant = (email: string) => {
     />
   );
 
-  // ---------- Navigation handlers ----------
   const handlePrev = () => {
     if (currentView === "month") {
       setCurrentDate(subMonths(currentDate, 1));
@@ -1125,66 +1135,67 @@ const removeFormParticipant = (email: string) => {
     }
   };
 
-  // ---------- Double-click handlers for creating events ----------
   const handleDayViewDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const offsetY = e.clientY - rect.top;
     const hourFraction = offsetY / hourHeight;
     const clickedHour = startHour + hourFraction;
-    const hoursPart = Math.floor(clickedHour);
-    const minutes = Math.floor((clickedHour - hoursPart) * 60);
     
     const newStart = new Date(currentDate);
-    newStart.setHours(hoursPart, minutes, 0, 0);
+    const hoursPart = Math.floor(clickedHour);
+    const minutesPart = Math.floor((clickedHour - hoursPart) * 60);
+    newStart.setHours(hoursPart, minutesPart, 0, 0);
     
-    const newEnd = new Date(newStart);
+    const roundedStart = roundToNearestFifteenMinutes(newStart, 'nearest');
+    
+    const newEnd = new Date(roundedStart);
     newEnd.setMinutes(newEnd.getMinutes() + 30);
     
     const defaultCalendar = calendars && calendars.length > 0 ? 
-  calendars.find(cal => cal.calendarType !== "holiday") || calendars[0] : null;
-
-setEventFormData({
-  ...eventFormData,
-  startedAt: newStart.toISOString(),
-  endedAt: newEnd.toISOString(),
-  color: defaultCalendar?.color || "#4CAF50",
-  calendarId: defaultCalendar ? parseInt(defaultCalendar.id) : 0,
-  isEditing: false
-});
+      calendars.find(cal => cal.calendarType !== "holiday") || calendars[0] : null;
+  
+    setEventFormData({
+      ...eventFormData,
+      startedAt: roundedStart.toISOString(),
+      endedAt: newEnd.toISOString(),
+      color: defaultCalendar?.color || "#4CAF50",
+      calendarId: defaultCalendar ? parseInt(defaultCalendar.id) : 0,
+      isEditing: false
+    });
     
     setShowEventModal(true);
   };
-
   const handleWeekViewDoubleClick = (e: React.MouseEvent<HTMLDivElement>, day: Date) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const offsetY = e.clientY - rect.top;
     const hourFraction = offsetY / hourHeight;
     const clickedHour = startHour + hourFraction;
-    const hoursPart = Math.floor(clickedHour);
-    const minutes = Math.floor((clickedHour - hoursPart) * 60);
     
     const newStart = new Date(day);
-    newStart.setHours(hoursPart, minutes, 0, 0);
+    const hoursPart = Math.floor(clickedHour);
+    const minutesPart = Math.floor((clickedHour - hoursPart) * 60);
+    newStart.setHours(hoursPart, minutesPart, 0, 0);
     
-    const newEnd = new Date(newStart);
+    const roundedStart = roundToNearestFifteenMinutes(newStart, 'nearest');
+    
+    const newEnd = new Date(roundedStart);
     newEnd.setMinutes(newEnd.getMinutes() + 30);
     
     const defaultCalendar = calendars && calendars.length > 0 ? 
-  calendars.find(cal => cal.calendarType !== "holiday") || calendars[0] : null;
-
-setEventFormData({
-  ...eventFormData,
-  startedAt: newStart.toISOString(),
-  endedAt: newEnd.toISOString(),
-  color: defaultCalendar?.color || "#4CAF50",
-  calendarId: defaultCalendar ? parseInt(defaultCalendar.id) : 0,
-  isEditing: false
-});
+      calendars.find(cal => cal.calendarType !== "holiday") || calendars[0] : null;
+  
+    setEventFormData({
+      ...eventFormData,
+      startedAt: roundedStart.toISOString(),
+      endedAt: newEnd.toISOString(),
+      color: defaultCalendar?.color || "#4CAF50",
+      calendarId: defaultCalendar ? parseInt(defaultCalendar.id) : 0,
+      isEditing: false
+    });
     
     setShowEventModal(true);
   };
 
-  // ---------- Event form handlers ----------
   const handleEventFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -1321,6 +1332,9 @@ setEventFormData({
         setAlertMessage("Error saving event. Please try again.");
       }
       console.error("Error saving event:", error);
+      if (!showEventModal) {
+        resetEventForm();
+      }
     }
   };
 
@@ -1404,23 +1418,33 @@ const handleDeleteEvent = async () => {
 };
 
   const resetEventForm = () => {
-    const defaultCalendar = calendars && calendars.length > 0 ? 
-      calendars.find(cal => cal.calendarType !== "holiday") || calendars[0] : null;
-    
-    setEventFormData({
-      name: "",
-      description: "",
-      category: EventCategory.HOME,
-      startedAt: "",
-      endedAt: "",
-      color: defaultCalendar?.color || "#4CAF50",
-      type: EventType.TASK,
-      calendarId: defaultCalendar ? parseInt(defaultCalendar.id) : 0,
-      isEditing: false
-    });
-    setFormParticipants([]);
-    setNewParticipantEmail("");
-  };
+  const defaultCalendar = calendars && calendars.length > 0 ? 
+    calendars.find(cal => cal.calendarType !== "holiday") || calendars[0] : null;
+  
+  const now = new Date();
+  const roundedStart = roundToNearestFifteenMinutes(now, 'nearest');
+  const newEnd = new Date(roundedStart);
+  newEnd.setMinutes(newEnd.getMinutes() + 30);
+  
+  setEventFormData({
+    name: "",
+    description: "",
+    category: EventCategory.HOME,
+    startedAt: roundedStart.toISOString(),
+    endedAt: newEnd.toISOString(),
+    color: defaultCalendar?.color || "#4CAF50",
+    type: EventType.TASK,
+    calendarId: defaultCalendar ? parseInt(defaultCalendar.id) : 0,
+    priority: TaskPriority.MEDIUM,
+    isCompleted: false,
+    isEditing: false
+  });
+  
+  setFormParticipants([]);
+  setNewParticipantEmail("");
+  
+  setSelectedEventId(null);
+}
 
   const handleAddParticipant = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1585,7 +1609,6 @@ const renderEventModal = () => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
         <form onSubmit={handleEventFormSubmit}>
-          {/* Header with gradient background */}
           <div 
             className="px-6 py-5 relative overflow-hidden"
             style={{ 
@@ -1593,13 +1616,11 @@ const renderEventModal = () => {
               color: '#fff'
             }}
           >
-            {/* Decorative circles in background */}
             <div className="absolute -right-12 -top-10 w-32 h-32 rounded-full bg-white opacity-10"></div>
             <div className="absolute -right-5 -bottom-20 w-40 h-40 rounded-full bg-white opacity-5"></div>
             
             <div className="flex justify-between items-start relative z-10">
               <div className="flex-1">
-                {/* Event type badge */}
                 <div className="flex items-center gap-2 mb-4">
                   <span className={`px-2.5 py-1 text-sm font-medium rounded-full ${typeBgColor} ${typeColor}`}>
                     {eventFormData.isEditing ? `Edit ${typeLabel}` : `New ${typeLabel}`}
@@ -1613,7 +1634,6 @@ const renderEventModal = () => {
                   )}
                 </div>
                 
-                {/* Title field */}
                 <input
                   type="text"
                   value={eventFormData.name}
@@ -1627,7 +1647,10 @@ const renderEventModal = () => {
               
               <button 
                 type="button"
-                onClick={() => setShowEventModal(false)}
+                onClick={() => {
+                  setShowEventModal(false);
+                  resetEventForm();
+                }}              
                 className="p-1 rounded-full hover:bg-white/10 transition-colors"
               >
                 <X size={24} className="text-white" />
@@ -1635,10 +1658,8 @@ const renderEventModal = () => {
             </div>
           </div>
           
-          {/* Main form content */}
           <div className="p-6 overflow-y-auto max-h-[calc(100vh-250px)]">
             <div className="space-y-6">
-              {/* Date and time section */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
@@ -1659,6 +1680,7 @@ const renderEventModal = () => {
       });
     }
   }}
+  step="900"
   className="pl-10 w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
   required
 />
@@ -1684,6 +1706,7 @@ const renderEventModal = () => {
       });
     }
   }}
+  step="900"
   className="pl-10 w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
   required
 />
@@ -1691,7 +1714,6 @@ const renderEventModal = () => {
                 </div>
               </div>
               
-              {/* Description */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
                   Description
@@ -1705,7 +1727,6 @@ const renderEventModal = () => {
                 />
               </div>
               
-              {/* Category & Type */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
@@ -1771,70 +1792,66 @@ const renderEventModal = () => {
                 )}
               </div>
               
-              {/* Participants section - only show for arrangement type */}
-              {(eventFormData.type === EventType.ARRANGEMENT) && (
-                <div className="border-t pt-4 mt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-medium text-gray-700">Participants</h3>
-                    <div className="text-xs text-gray-500">{formParticipants.length} people</div>
-                  </div>
-                  
-                  {/* Add participant form */}
-                  <div className="flex mb-4">
-                    <div className="relative flex-1">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <UserPlus size={16} className="text-gray-400" />
-                      </div>
-                      <input
-                        type="email"
-                        value={newParticipantEmail}
-                        onChange={(e) => setNewParticipantEmail(e.target.value)}
-                        placeholder="Enter email address"
-                        className="pl-10 w-full border border-gray-300 rounded-l-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={addFormParticipant}
-                      disabled={isSearchingUser || !newParticipantEmail.trim()}
-                      className="bg-indigo-600 text-white px-4 py-2 rounded-r-md hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 flex items-center"
-                    >
-                      {isSearchingUser ? (
-                        <span className="flex items-center">
-                          <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-opacity-50 border-t-white rounded-full"></div>
-                          Searching...
-                        </span>
-                      ) : (
-                        "Add"
-                      )}
-                    </button>
-                  </div>
-                  
-                  {/* Participants list */}
-                  {formParticipants.length > 0 ? (
-                    <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-2">
-                      {formParticipants.map((participant, index) => (
-                        <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded hover:bg-gray-100">
-                          <span className="text-sm text-gray-800">{participant.email}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeFormParticipant(participant.email)}
-                            className="p-1 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-200"
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-gray-50 rounded-md text-center text-sm text-gray-500">
-                      No participants added yet. Add participants by email above.
-                    </div>
-                  )}
-                </div>
-              )}
+              {(eventFormData.type === EventType.ARRANGEMENT && !eventFormData.isEditing) && (
+  <div className="border-t pt-4 mt-4">
+    <div className="flex items-center justify-between mb-3">
+      <h3 className="text-sm font-medium text-gray-700">Participants</h3>
+      <div className="text-xs text-gray-500">{formParticipants.length} people</div>
+    </div>
+    
+    <div className="flex mb-4">
+      <div className="relative flex-1">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <UserPlus size={16} className="text-gray-400" />
+        </div>
+        <input
+          type="email"
+          value={newParticipantEmail}
+          onChange={(e) => setNewParticipantEmail(e.target.value)}
+          placeholder="Enter email address"
+          className="pl-10 w-full border border-gray-300 rounded-l-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        />
+      </div>
+      <button
+        type="button"
+        onClick={addFormParticipant}
+        disabled={isSearchingUser || !newParticipantEmail.trim()}
+        className="bg-indigo-600 text-white px-4 py-2 rounded-r-md hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 flex items-center"
+      >
+        {isSearchingUser ? (
+          <span className="flex items-center">
+            <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-opacity-50 border-t-white rounded-full"></div>
+            Searching...
+          </span>
+        ) : (
+          "Add"
+        )}
+      </button>
+    </div>
+    
+    {formParticipants.length > 0 ? (
+      <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-2">
+        {formParticipants.map((participant, index) => (
+          <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded hover:bg-gray-100">
+            <span className="text-sm text-gray-800">{participant.email}</span>
+            <button
+              type="button"
+              onClick={() => removeFormParticipant(participant.email)}
+              className="p-1 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-200"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div className="p-4 bg-gray-50 rounded-md text-center text-sm text-gray-500">
+        No participants added yet. Add participants by email above.
+      </div>
+    )}
+  </div>
+)}
               
-              {/* Task-specific fields */}
               {(!eventFormData.isEditing || 
                 (eventFormData.isEditing && currentEvent?.type === EventType.TASK)) && 
                eventFormData.type === EventType.TASK && (
@@ -1889,7 +1906,6 @@ const renderEventModal = () => {
                 
                 {!eventFormData.isEditing && (
   <>
-    {/* Calendar selection - only show when creating new event */}
     <div className="space-y-2">
       <label className="block text-sm font-medium text-gray-700">
         Calendar
@@ -1909,7 +1925,6 @@ const renderEventModal = () => {
           className="w-full border border-gray-300 rounded-md px-3 py-2 pl-10 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none"
         >
           {calendars
-            // Фильтруем календари, исключая календари с ролью viewer и holiday календари
             .filter(cal => 
               cal.calendarType !== "holiday" && 
               cal.role?.toLowerCase() !== "viewer"
@@ -1935,7 +1950,6 @@ const renderEventModal = () => {
   </>
 )}
 
-{/* Color picker - show for both creating and editing */}
 <div className="space-y-2">
   <label className="block text-sm font-medium text-gray-700">
     Event Color
@@ -1971,15 +1985,17 @@ const renderEventModal = () => {
               </div>
             </div>
             
-            {/* Action buttons */}
             <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => setShowEventModal(false)}
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm"
-              >
-                Cancel
-              </button>
+            <button
+  type="button"
+  onClick={() => {
+    setShowEventModal(false);
+    resetEventForm();
+  }}
+  className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm"
+>
+  Cancel
+</button>
               <button
                 type="submit"
                 className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors text-sm font-medium shadow-sm flex items-center"
@@ -2002,8 +2018,6 @@ const renderEventModal = () => {
       </div>
     );
   };
-  // This is the new renderEventDetailModal function with a modern design
-// Replace your existing renderEventDetailModal function with this code
 
 const renderEventDetailModal = () => {
   
@@ -2016,7 +2030,6 @@ const renderEventDetailModal = () => {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
-          {/* Header with gradient background */}
           <div 
             className="px-6 py-5 relative overflow-hidden"
             style={{ 
@@ -2057,8 +2070,6 @@ const renderEventDetailModal = () => {
             </div>
           </div>
           
-          {/* Content area */}
-          {/* Content area */}
 <div className="p-6">
   {holidayEvent.description ? (
     holidayEvent.description.startsWith("Observance") ? (
@@ -2079,7 +2090,6 @@ const renderEventDetailModal = () => {
   )}
 </div>
           
-          {/* Action buttons */}
           <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end">
             <button
               onClick={() => {
@@ -2096,12 +2106,10 @@ const renderEventDetailModal = () => {
     );
   }
   if (!currentEvent) return null;
-  // Find the calendar this event belongs to
   const calendar = calendars.find(
     cal => cal.id === String(currentEvent.participations?.[0]?.calendarMember?.calendarId)
   );
-  
-  // If no calendar is found directly, try to get it from participation data
+
   const calendarFromParticipation = !calendar && currentEvent.participations && 
     currentEvent.participations.length > 0 ?
     calendars.find(cal => 
@@ -2111,7 +2119,6 @@ const renderEventDetailModal = () => {
   const eventCalendar = calendar || calendarFromParticipation;
   console.log("Event calendar:", eventCalendar);
   
-  // Get event type icon and color scheme
   let typeIcon;
   let typeColor;
   let typeBgColor;
@@ -2143,7 +2150,6 @@ const renderEventDetailModal = () => {
       typeLabel = "Event";
   }
   
-  // Format dates
   const startDate = new Date(currentEvent.startedAt);
   const endDate = new Date(currentEvent.endedAt);
   const formattedStartDate = format(startDate, "EEE, MMM d, yyyy");
@@ -2153,23 +2159,19 @@ const renderEventDetailModal = () => {
   
   const isSameDay = format(startDate, "yyyy-MM-dd") === format(endDate, "yyyy-MM-dd");
   
-  // Time display logic
   const timeDisplay = isSameDay 
     ? `${formattedStartTime} - ${formattedEndTime}` 
     : `${formattedStartTime}, ${formattedStartDate} - ${formattedEndTime}, ${formattedEndDate}`;
   
-  // Create date range for header display
   const headerDateDisplay = isSameDay
     ? formattedStartDate
     : `${format(startDate, "MMM d")} - ${format(endDate, "MMM d, yyyy")}`;
   
-  // Get event color for styling
   const eventColor = currentEvent.color || eventCalendar?.color || "#4CAF50";
   
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
-        {/* Header with gradient background */}
         <div 
           className="px-6 py-5 relative overflow-hidden"
           style={{ 
@@ -2177,7 +2179,6 @@ const renderEventDetailModal = () => {
             color: '#fff'
           }}
         >
-          {/* Decorative circles in background */}
           <div className="absolute -right-12 -top-10 w-32 h-32 rounded-full bg-white opacity-10"></div>
           <div className="absolute -right-5 -bottom-20 w-40 h-40 rounded-full bg-white opacity-5"></div>
           
@@ -2213,9 +2214,7 @@ const renderEventDetailModal = () => {
           </div>
         </div>
         
-        {/* Content area with tabs */}
         <div className="flex-1 overflow-y-auto">
-          {/* Tab navigation */}
           <div className="flex border-b">
             <button
               onClick={() => setActiveTab('details')}
@@ -2253,10 +2252,8 @@ const renderEventDetailModal = () => {
             )}
           </div>
           
-          {/* Details tab content */}
           {activeTab === 'details' && (
             <div className="p-6">
-              {/* Description section */}
               {currentEvent.description ? (
                 <div className="mb-6">
                   <h3 className="text-sm font-medium text-gray-500 mb-2">Description</h3>
@@ -2268,9 +2265,7 @@ const renderEventDetailModal = () => {
                 </div>
               )}
               
-              {/* Additional event details */}
               <div className="space-y-4">
-                {/* Category */}
                 <div className="flex items-center">
                   <div className="w-8 flex items-center justify-center text-gray-400">
                     {currentEvent.category === EventCategory.HOME ? (
@@ -2287,10 +2282,8 @@ const renderEventDetailModal = () => {
                   </div>
                 </div>
                 
-                {/* Task-specific details */}
                 {currentEvent.type === EventType.TASK && currentEvent.task && (
                   <>
-                    {/* Priority */}
                     <div className="flex items-center">
                       <div className="w-8 flex items-center justify-center text-gray-400">
                         <AlertCircle size={18} />
@@ -2309,7 +2302,6 @@ const renderEventDetailModal = () => {
                       </div>
                     </div>
                     
-                    {/* Status with toggle */}
                     <div className="flex items-center">
                       <div className="w-8 flex items-center justify-center text-gray-400">
                         <CheckSquare size={18} />
@@ -2325,7 +2317,6 @@ const renderEventDetailModal = () => {
                                   isCompleted: !currentEvent.task.isCompleted
                                 };
                                 
-                                // Create a payload with only the status
                                 const updatePayload: Partial<UpdateEventPayload> = {
                                   isCompleted: !currentEvent.task.isCompleted
                                 };
@@ -2363,10 +2354,8 @@ const renderEventDetailModal = () => {
             </div>
           )}
           
-          {/* Participants tab content */}
           {activeTab === 'participants' && currentEvent.type === EventType.ARRANGEMENT && (
   <div className="p-6">
-    {/* Add participant button (if can manage) */}
     {canManageParticipants && (
       <button 
         onClick={() => setShowParticipantModal(true)}
@@ -2377,25 +2366,20 @@ const renderEventDetailModal = () => {
       </button>
     )}
     
-    {/* Participants list */}
     <div className="space-y-1">
       <h3 className="text-sm font-medium text-gray-500 mb-3">Participants</h3>
       
       {currentEvent.participations && currentEvent.participations.length > 0 ? (
         <div className="rounded-lg border border-gray-200 overflow-hidden">
-          {/* Фильтруем дубликаты участников по email */}
           {(() => {
-            // Создаем Map для хранения уникальных участников
             const uniqueParticipants = new Map();
             
-            // Перебираем всех участников
             currentEvent.participations
               .filter(participant => participant.responseStatus !== null)
               .forEach(participant => {
                 const email = participant.calendarMember?.user?.email;
                 const userId = participant.calendarMember?.user?.id;
                 
-                // Используем email как уникальный ключ
                 const key = email || userId;
                 
                 if (key && !uniqueParticipants.has(key)) {
@@ -2403,7 +2387,6 @@ const renderEventDetailModal = () => {
                 }
               });
             
-            // Преобразуем Map обратно в массив
             return Array.from(uniqueParticipants.values()).map((participant, index, filteredArray) => (
               <div 
                 key={participant.id} 
@@ -2418,8 +2401,18 @@ const renderEventDetailModal = () => {
                     className="w-8 h-8 rounded-full mr-3"
                   />
                   <div>
-                    <div className="text-sm font-medium text-gray-900">
+                  <div className="flex items-center text-sm font-medium text-gray-900">
                       {participant.calendarMember.user.firstName} {participant.calendarMember.user.lastName}
+                      {participant.responseStatus === ResponseStatus.ACCEPTED && (
+                    <div className="ml-2 w-4 h-4 rounded-full bg-green-400 flex items-center justify-center border border-white">
+                      <Check size={10} className="text-white" />
+                    </div>
+                  )}
+                  {participant.responseStatus === ResponseStatus.DECLINED && (
+                    <div className="ml-2 w-4 h-4 rounded-full bg-red-400 flex items-center justify-center border border-white">
+                      <X size={10} className="text-white" />
+                    </div>
+                  )}
                     </div>
                     <div className="text-xs text-gray-500">{participant.calendarMember.user.email}</div>
                   </div>
@@ -2427,7 +2420,7 @@ const renderEventDetailModal = () => {
                 
                 <div className="flex items-center">
                   {/* Status badge */}
-                  <span className={`text-xs px-2 py-1 rounded-full ${
+                  {/* <span className={`text-xs px-2 py-1 rounded-full ${
                     participant.responseStatus === ResponseStatus.ACCEPTED
                       ? 'bg-green-100 text-green-800'
                       : participant.responseStatus === ResponseStatus.DECLINED
@@ -2435,37 +2428,50 @@ const renderEventDetailModal = () => {
                       : 'bg-gray-100 text-gray-800'
                   }`}>
                     {participant.responseStatus}
-                  </span>
+                  </span> */}
                   
-                  {/* Action buttons */}
-                  {participant.calendarMember.userId === authUser?.id && 
-                    participant.responseStatus !== ResponseStatus.ACCEPTED && 
-                    participant.responseStatus !== ResponseStatus.DECLINED && (
+                  {participant.calendarMember.userId === authUser?.id && (
                     <div className="flex space-x-1 ml-2">
+                      {participant.responseStatus !== ResponseStatus.INVITED && (
+                        <>
+                          {participant.responseStatus !== ResponseStatus.ACCEPTED && (
+                            <button
+                              onClick={() => handleUpdateParticipantStatus(
+                                participant.calendarMemberId, 
+                                ResponseStatus.ACCEPTED
+                              )}
+                              className="p-1 bg-green-100 text-green-600 rounded hover:bg-green-200"
+                              title="Accept"
+                            >
+                              <Check size={14} />
+                            </button>
+                          )}
+                          
+                          {participant.responseStatus !== ResponseStatus.DECLINED && (
+                            <button
+                              onClick={() => handleUpdateParticipantStatus(
+                                participant.calendarMemberId, 
+                                ResponseStatus.DECLINED
+                              )}
+                              className="p-1 bg-red-100 text-red-600 rounded hover:bg-red-200"
+                              title="Decline"
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </>
+                      )}
+                      
                       <button
-                        onClick={() => handleUpdateParticipantStatus(
-                          participant.calendarMemberId, 
-                          ResponseStatus.ACCEPTED
-                        )}
-                        className="p-1 bg-green-100 text-green-600 rounded hover:bg-green-200"
-                        title="Accept"
+                        onClick={() => handleRemoveParticipant(participant.calendarMemberId)}
+                        className="p-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
+                        title="Leave event"
                       >
-                        <Check size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleUpdateParticipantStatus(
-                          participant.calendarMemberId, 
-                          ResponseStatus.DECLINED
-                        )}
-                        className="p-1 bg-red-100 text-red-600 rounded hover:bg-red-200"
-                        title="Decline"
-                      >
-                        <X size={14} />
+                        <LogOut size={14} />
                       </button>
                     </div>
                   )}
                   
-                  {/* Remove participant button */}
                   {canManageParticipants && 
                     participant.calendarMember.userId !== authUser?.id && (
                     <button
@@ -2491,10 +2497,8 @@ const renderEventDetailModal = () => {
 )}
         </div>
         
-        {/* Action buttons */}
         <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-between">
   <div>
-    {/* Only show delete button if user can delete */}
     {canDeleteEvent && (
       <button
         onClick={handleDeleteEvent}
@@ -2514,7 +2518,6 @@ const renderEventDetailModal = () => {
       Close
     </button>
     
-    {/* Only show edit button if user can edit */}
     {canEditEvent && (
       <button
         onClick={handleEditEvent}
@@ -2583,7 +2586,6 @@ const renderEventDetailModal = () => {
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-lg relative">
-      {/* Header and navigation */}
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
           <h2 className="text-2xl font-bold text-slate-800 flex items-center">
@@ -2657,7 +2659,6 @@ const renderEventDetailModal = () => {
           </div>
         </div>
         
-        {/* View toggles */}
         <div className="flex justify-center">
           <div className="inline-flex rounded-md shadow-sm bg-slate-100 p-1">
             <button
@@ -2704,10 +2705,8 @@ const renderEventDetailModal = () => {
         </div>
       </div>
       
-      {/* Week days header for month view */}
       {currentView === "month" && weekdaysHeader}
 
-      {/* Main calendar content */}
       <div className={`${currentView === "month" ? "space-y-2" : ""}`}>
         {currentView === "month" && monthRows}
         {currentView === "week" && renderWeekView()}
@@ -2715,16 +2714,12 @@ const renderEventDetailModal = () => {
         {currentView === "year" && renderYearView()}
       </div>
 
-      {/* Modals */}
       {showEventModal && renderEventModal()}
       {showEventDetailModal && renderEventDetailModal()}
       {showParticipantModal && renderParticipantModal()}
-      {/* Alert component */}
-      {/* {alertMessage && (
-        <Alert message={alertMessage} onClose={() => setAlertMessage(null)} />
-      )} */}
     </div>
   );
 };
 
 export default CustomCalendar;
+

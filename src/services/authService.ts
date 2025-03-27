@@ -37,7 +37,6 @@ interface AuthResponse {
 const authService = {
   register: async (userData: RegisterData) => {
     const response = await axios.post(`${API_URL}/register`, userData, {
-      // withCredentials: true,
     });
     return response.data;
   },
