@@ -8,9 +8,7 @@ export const getCalendarEvents = (calendarId: number, userId: number) => async (
   try {
     dispatch({ type: EventActionTypes.FETCH_EVENTS_REQUEST });
     
-    console.log(`Fetching events for calendar ${calendarId} and user ${userId}`);
     const events = await eventService.getCalendarEvents(calendarId, userId);
-    console.log(`Received ${events.length} events from API:`, events);
     
     dispatch({
       type: EventActionTypes.FETCH_EVENTS_SUCCESS,
@@ -32,9 +30,7 @@ export const getEvent = (eventId: number) => async (dispatch: Dispatch) => {
   try {
     dispatch({ type: EventActionTypes.FETCH_EVENT_REQUEST });
     
-    console.log(`Fetching event details for event ${eventId}`);
     const event = await eventService.getEvent(eventId);
-    console.log(`Received event details:`, event);
     
     dispatch({
       type: EventActionTypes.FETCH_EVENT_SUCCESS,
@@ -56,7 +52,6 @@ export const createEvent = (eventData: CreateEventPayload) => async (dispatch: D
   try {
     dispatch({ type: EventActionTypes.CREATE_EVENT_REQUEST });
     
-    console.log('Creating new event with data:', eventData);
     const event = await eventService.createEvent(eventData);
     console.log('Created event:', event);
     
@@ -80,7 +75,6 @@ export const updateEvent = (eventId: number, eventData: UpdateEventPayload) => a
   try {
     dispatch({ type: EventActionTypes.UPDATE_EVENT_REQUEST });
     
-    console.log(`Updating event ${eventId} with data:`, eventData);
     const event = await eventService.updateEvent(eventId, eventData);
     console.log('Updated event:', event);
     
@@ -104,7 +98,6 @@ export const deleteEvent = (eventId: number) => async (dispatch: Dispatch) => {
   try {
     dispatch({ type: EventActionTypes.DELETE_EVENT_REQUEST });
     
-    console.log(`Deleting event ${eventId}`);
     await eventService.deleteEvent(eventId);
     console.log(`Event ${eventId} deleted successfully`);
     
@@ -126,15 +119,12 @@ export const deleteEvent = (eventId: number) => async (dispatch: Dispatch) => {
 
 export const addEventParticipant = (eventId: number, calendarId: number, email: string) => async (dispatch: Dispatch) => {
   try {
-    console.log(`Finding user with email ${email}`);
     const users = await eventService.findUserByEmail(email);
     if (!users || users.length === 0) {
       console.error('User not found for email:', email);
       throw new Error('User not found');
     }
-    console.log('hyeta11', users);
     const userId = users.id;
-    console.log(`Found user ${userId}, adding as participant to event ${eventId}`);
     
     const result = await eventService.addParticipant(eventId, calendarId, userId);
     console.log('Participant added successfully:', result);
@@ -150,7 +140,6 @@ export const addEventParticipant = (eventId: number, calendarId: number, email: 
 
 export const updateEventParticipant = (eventId: number, calendarMemberId: number, data: { responseStatus?: string, color?: string }) => async (dispatch: Dispatch) => {
   try {
-    console.log(`Updating participant ${calendarMemberId} for event ${eventId} with data:`, data);
     const result = await eventService.updateParticipant(eventId, calendarMemberId, data);
     console.log('Participant updated successfully:', result);
     
@@ -165,7 +154,6 @@ export const updateEventParticipant = (eventId: number, calendarMemberId: number
 
 export const removeEventParticipant = (eventId: number, calendarMemberId: number) => async (dispatch: Dispatch) => {
   try {
-    console.log(`Removing participant ${calendarMemberId} from event ${eventId}`);
     await eventService.removeParticipant(eventId, calendarMemberId);
     console.log('Participant removed successfully');
     
@@ -192,3 +180,4 @@ export const confirmEventParticipation = (
     throw error;
   }
 };
+

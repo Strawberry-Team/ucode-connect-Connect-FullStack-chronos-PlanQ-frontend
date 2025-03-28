@@ -86,9 +86,7 @@ const CalendarPage: React.FC = () => {
         for (const cal of calendars) {
           if (cal.calendarType !== "holiday" && cal.calendarId) {
             try {
-              console.log(`Fetching events for calendar ${cal.calendarId}`);
               const calendarEvents = await dispatch(getCalendarEvents(cal.calendarId, authUser.id));
-              console.log(`Received events for calendar ${cal.calendarId}:`, calendarEvents);
               
               eventsMap[cal.calendarId] = calendarEvents;
             } catch (error) {
@@ -110,7 +108,6 @@ const CalendarPage: React.FC = () => {
     const fetchHolidays = async () => {
       try {
         const data: any[] = await calendarService.getHolidays();
-        console.log('parapara',data);
         const holidayCalendar = calendars.find(cal => cal.calendarType === "holiday");
         const holidayColor = holidayCalendar?.color || "#FF7043";
         
@@ -139,7 +136,6 @@ const CalendarPage: React.FC = () => {
   }, [calendars]);
 
   const formattedCalendars: CalendarData[] = useMemo(() => {
-    console.log("Formatting calendars with events:", calendarEventsMap);
     
     return calendars.map((item: any) => {
       let calendarEvents: CalendarEvent[] = [];
@@ -225,8 +221,6 @@ const CalendarPage: React.FC = () => {
     
     return result;
   }, [formattedCalendars]);
-  
-  console.log("All events to display:", allEvents.length);
 
   const closeModal = () => {
     setModalData({ type: null });
@@ -305,7 +299,6 @@ const CalendarPage: React.FC = () => {
   };
 
   const handleDeleteCalendar = (calendarId: string, userId: string) => {
-    console.log('deletIdCalendar', calendarId);
     dispatch(deleteCalendar(calendarId, userId));
     setAlertMessage("Calendar deleted successfully");
     closeModal();
@@ -327,14 +320,12 @@ const CalendarPage: React.FC = () => {
   };
 
 const handleAddEvent = async (newEvent: CalendarEvent & { deleted?: boolean }) => {
-  console.log("Event action:", newEvent.deleted ? "deletion" : "creation/update");
   
   if (authUser && authUser.id) {
     try {
       const calendarId = newEvent.calendarId;
       
       if (newEvent.deleted) {
-        console.log(`Handling event deletion for event ID: ${newEvent.id}`);
         
         const mainCalendar = formattedCalendars.find(cal => 
           cal.calendarType === 'main' && 
@@ -360,10 +351,8 @@ const handleAddEvent = async (newEvent: CalendarEvent & { deleted?: boolean }) =
         });
         
         const updatedEvents = await dispatch(getCalendarEvents(calendarId, authUser.id));
-        console.log(`Updated events list after deletion:`, updatedEvents);
         
         if (mainCalendar && mainCalendar.id) {
-          console.log(`Updating main calendar ${mainCalendar.id} after deletion`);
           const mainEvents = await dispatch(getCalendarEvents(mainCalendar.id, authUser.id));
           
           setCalendarEventsMap(prevMap => ({
@@ -378,7 +367,6 @@ const handleAddEvent = async (newEvent: CalendarEvent & { deleted?: boolean }) =
           }));
         }
       } else {
-        console.log(`Refreshing events for calendar ${calendarId}`);
         const events = await dispatch(getCalendarEvents(calendarId, authUser.id));
         
         const mainCalendar = formattedCalendars.find(cal => 
@@ -388,7 +376,6 @@ const handleAddEvent = async (newEvent: CalendarEvent & { deleted?: boolean }) =
         
         if (mainCalendar && mainCalendar.id) {
           if (calendarId !== mainCalendar.id) {
-            console.log(`Also refreshing main calendar ${mainCalendar.id}`);
             const mainEvents = await dispatch(getCalendarEvents(mainCalendar.id, authUser.id));
             
             setCalendarEventsMap(prevMap => ({
@@ -956,7 +943,7 @@ const handleAddEvent = async (newEvent: CalendarEvent & { deleted?: boolean }) =
             <div className="p-4 border-b border-gray-200 bg-white">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <CalendarClock className="mr-2 text-indigo-600" size={20} />
+                
                   <span>Calendars</span>
                 </h2>
                 <button 

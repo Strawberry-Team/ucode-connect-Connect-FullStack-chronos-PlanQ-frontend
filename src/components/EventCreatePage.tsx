@@ -86,11 +86,9 @@ const EventCreatePage: React.FC = () => {
   });
 
   useEffect(() => {
-    console.log("Calendars loaded:", calendars);
     
     if (calendars && calendars.length > 0) {
       const defaultCalendar = calendars.find(cal => cal.calendarType !== "holiday") || calendars[0];
-      console.log("Default calendar selected:", defaultCalendar);
       
       const now = new Date();
       const later = new Date(now);
@@ -114,15 +112,12 @@ const EventCreatePage: React.FC = () => {
       
       setCalendarsLoading(false);
     } else if (calendars && calendars.length === 0) {
-      console.log("No calendars found");
       setCalendarsLoading(false);
     }
   }, [calendars]);
 
 
   useEffect(() => {
-    console.log("EventCreatePage mounted, authUser:", authUser?.id);
-    console.log("Initial calendars state:", calendars);
     
     if (authUser && authUser.id) {
       console.log("Dispatching getUserCalendars for user:", authUser.id);
@@ -203,13 +198,12 @@ const [calendarsLoading, setCalendarsLoading] = useState(true);
       }
       
       const newEvent = await dispatch(createEvent(createPayload));
-      console.log("New event created:", newEvent);
       
       if (authUser?.id) {
         await dispatch(getCalendarEvents(eventFormData.calendarId, authUser.id));
       }
       
-      navigate("/");
+      navigate("/calendar");
     } catch (error) {
       console.error("Error creating event:", error);
     }

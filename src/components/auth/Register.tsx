@@ -107,7 +107,6 @@ const Register = () => {
   }, [countries]);
 
   const onSubmit = async (values: z.infer<typeof registerSchema>) => {
-    console.log('Submitted values:', values);
     setIsLoading(true);
     try {
      const userData: any = {
@@ -120,7 +119,6 @@ const Register = () => {
     if (values.lastName) {
       userData.lastName = values.lastName;
     }
-    console.log('Data sent to server:', userData);
 
       await dispatch(registerUser(userData));
       setSuccess('Registration successful! Please check your email to confirm your account.');

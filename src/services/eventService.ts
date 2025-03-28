@@ -91,7 +91,6 @@ const eventService = {
   },
 
   createEvent: async (eventData: CreateEventPayload): Promise<Event> => {
-    console.log('create event data', eventData);
     const response = await axios.post(`${API_URL}/events/`, eventData);
     return response.data;
   },
@@ -124,7 +123,6 @@ const eventService = {
 
   findUserByEmail: async (email: string): Promise<any> => {
     const response = await axios.get(`${API_URL}/users?email=${email}`);
-    console.log('email fucking user', response);
     return response.data;
   },
 

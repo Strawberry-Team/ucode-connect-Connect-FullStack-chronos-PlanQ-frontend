@@ -521,7 +521,6 @@ const [activeTab, setActiveTab] = useState<'details' | 'participants'>('details'
 const navigate = useNavigate();
 
 const [holidayEvent, setHolidayEvent] = useState<CalendarEvent | null>(null);
-console.log('holiday zalypa', holidayEvent);
 const handleEventClick = (event: CalendarEvent) => {
   if (event.type === "holiday") {
     setHolidayEvent(event);
@@ -537,7 +536,6 @@ const searchUserByEmail = async (email: string) => {
   setIsSearchingUser(true);
   try {
     const users = await eventService.findUserByEmail(email);
-    console.log('chtoto tut',users);
     if (!users || users.length === 0) {
       return null;
     }
@@ -559,7 +557,6 @@ const addFormParticipant = async () => {
   }
   
   const user = await searchUserByEmail(newParticipantEmail);
-  console.log('tyt teper', user);
   if (!user) {
     if (setAlertMessage) {
       setAlertMessage("User not found");
@@ -620,10 +617,8 @@ const removeFormParticipant = (email: string) => {
   const [currentNow, setCurrentNow] = useState(new Date());
   
   useEffect(() => {
-    console.log("Events received in CustomCalendar:", events.length);
     
     if (events.length > 0) {
-      console.log("Event sample:", events[0]);
     }
   }, [events]);
   
@@ -642,7 +637,6 @@ const removeFormParticipant = (email: string) => {
 
   useEffect(() => {
     if (currentEvent && currentEvent.type === "holiday") {
-      console.log("Holiday event selected directly:", currentEvent);
     }
   }, [currentEvent]);
 
@@ -896,11 +890,11 @@ const removeFormParticipant = (email: string) => {
                 return (
                   <>
                     {combinedElements}
-                    {totalEvents > 3 && (
+                    {/* {totalEvents > 3 && (
                       <div className="text-xs text-slate-500 italic pl-2">
                         +{totalEvents - 3} more
                       </div>
-                    )}
+                    )} */}
                   </>
                 );
               })()}
@@ -1104,7 +1098,6 @@ const removeFormParticipant = (email: string) => {
             }
           );
           
-          console.log(`Found ${dayEvents.length} events for week day ${dayStr}`);
           
           const layouts = calculateEventPositions(
             dayEvents.filter(event => event && event.start),
@@ -1318,7 +1311,6 @@ const removeFormParticipant = (email: string) => {
       }
     );
     
-    console.log(`Found ${timedEvents.length} timed events for day ${dayStr}`);
     
     const hours: number[] = [];
     for (let h = startHour; h < endHour; h++) {
@@ -1726,7 +1718,6 @@ const removeFormParticipant = (email: string) => {
           if (calendarMemberId) {
             const currentColor = currentEvent.participations[0].color;
             if (currentColor !== eventFormData.color) {
-              console.log("Updating event color to:", eventFormData.color);
               await dispatch(updateEventParticipant(
                 eventFormData.id, 
                 calendarMemberId, 
@@ -1804,13 +1795,11 @@ const removeFormParticipant = (email: string) => {
         }
         
         const newEvent = await dispatch(createEvent(createPayload));
-        console.log("New event created:", newEvent);
         if (setAlertMessage) {
           setAlertMessage("Event created successfully");
         }
         if (authUser?.id) {
           const updatedEvents = await dispatch(getCalendarEvents(eventFormData.calendarId, authUser.id));
-          console.log("Updated events after creation:", updatedEvents);
           
           if (onAddEvent && typeof onAddEvent === 'function') {
             const syntheticEvent = {
@@ -2521,9 +2510,6 @@ const renderEventModal = () => {
   };
 
 const renderEventDetailModal = () => {
-  
-  console.log("Rendering event details:", currentEvent);
-  console.log("holidayEvent:", holidayEvent);
   if (holidayEvent && holidayEvent.type === "holiday") {
     const eventColor = holidayEvent.color || "#FF7043";
     const eventDate = new Date(holidayEvent.start);
@@ -2618,7 +2604,6 @@ const renderEventDetailModal = () => {
     ) : null;
   
   const eventCalendar = calendar || calendarFromParticipation;
-  console.log("Event calendar:", eventCalendar);
   
   let typeIcon;
   let typeColor;

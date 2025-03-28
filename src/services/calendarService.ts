@@ -5,13 +5,11 @@ const API_URL = "http://localhost:3000/api";
 const calendarService = {
   getUserCalendars: async (userId: string) => {
     const response = await axios.get(`${API_URL}/users/${userId}/calendars`);
-    console.log("calendars:", response);
     return response.data;
   },
 
   addCalendar: async (calendarData: any) => {
     const response = await axios.post(`${API_URL}/calendars`, calendarData);
-    console.log("calendar created:", response);
     return response.data;
   },
 
@@ -41,7 +39,6 @@ const calendarService = {
 
   getHolidays: async () => {
     const response = await axios.get(`${API_URL}/calendars/holidays`);
-    console.log("holiday from service:", response);
     return response.data;
   },
 
