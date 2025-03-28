@@ -1,105 +1,108 @@
-# USOF Frontend
+# Chronos Frontend
 
-**Solve Stack** is a frontend application for a Q&A platform designed for programmers and IT enthusiasts to share knowledge and solve technical problems.
+**Chronos** is a modern, intuitive time management application designed to help users efficiently organize their schedules, meetings, and tasks. The frontend provides a responsive, user-friendly interface that works seamlessly with the Chronos backend API.
 
 ## Table of Contents
 - [Overview](#overview)
 - [Features](#features)
 - [Requirements and Dependencies](#requirements-and-dependencies)
 - [Setup Instructions](#setup-instructions)
+- [User Interface](#user-interface)
 - [State Management](#state-management)
-- [API Integration](#api-integration)
-- [Authentication](#authentication)
-- [Sample Credentials](#sample-credentials)
+- [Calendar Views](#calendar-views)
+- [Event Management](#event-management)
+- [Responsive Design](#responsive-design)
 - [Screenshots](#screenshots)
 
 ## Overview
-The **Solve Stack Frontend** provides a modern, responsive user interface for interacting with the Solve Stack backend API. It offers a seamless experience for users to create, browse, and engage with programming-related posts and discussions.
+The **Chronos Frontend** offers an elegant and intuitive interface for time management. It provides multiple calendar views, simple event creation, task tracking, and collaboration features. The application is designed with a focus on user experience, ensuring that all time management functions are easily accessible and visually appealing.
 
 ## Features
-- **Responsive Design**: Mobile and desktop-friendly interface.
-- **User Authentication**: Secure login and registration.
-- **Post Management**: Create, edit, and browse posts.
-- **Rich Text Editing**: Integrated text editor for post creation.
-- **Search Functionality**: Advanced post search capabilities.
-- **Role-Based Access Control**: Different UI experiences for guests, users and admins.
-- **State Management**: Centralized Redux state management.
-- **Favorite Posts**: Users can add posts to their favorites.
+- **Intuitive Calendar Interface**: Day, Week, month, and year views
+- **Easy Event Creation**: Create events directly from calendar or dedicated form
+- **Multiple Event Types**: Support for arrangements, reminders, and tasks
+- **Calendar Customization**: Personal calendars with custom colors and settings
+- **Collaboration Tools**: Calendar sharing and event invitations
+- **Search Functionality**: Quick search for events and tasks
+- **Responsive Design**: Works on mobile, tablet, and desktop devices
+- **National Holiday Integration**: Automatic display of holidays based on region
 
 ## Requirements and Dependencies
-- **Node.js** (v14+ recommended)
+- **Modern Browser**: Chrome, Firefox, Safari, or Edge
 - **NPM** (v10+ recommended)
-- **MySQL** (v8+ recommended)
-
-Before starting, ensure the required technologies are installed.
+- **Chronos Backend API** running and accessible
 
 ## Setup Instructions
 
-Ensure the [Solve Stack Backend](https://github.com/Kolesnichenko0/ucode-connect-Connect-FullStack-usof-backend/blob/main/README.md) is set up and running before starting the frontend. The frontend application requires a running backend API to function correctly.
-To run this project locally, follow these steps:
+Ensure the Chronos Backend is set up and running before starting the frontend.
 
 1. **Clone the Repository**:
    ```bash
-   git clone ...
+   git clone [repository-url]
+   cd ucode-connect-Connect-FullStack-chronos-PlanQ-frontend
    ```
-2. **Install All Dependencies**:
+
+2. **Install Dependencies**:
    ```bash
    npm install
    ```
 
-3. **Launch the Application**:
-    ```bash
-    npm run dev
-    ```
+
+3. **Start the Development Server**:
+   ```bash
+   npm run dev
+   ```
+
+## User Interface
+The application features a clean, modern interface with:
+- **Navigation Sidebar**: Quick access to different calendars and views
+- **Calendar Grid**: Interactive display of events and tasks
+- **Event Cards**: Visually distinct cards for different event types
+- **Form Components**: Intuitive forms for creating and editing events
+- **Search Bar**: Easily find events across all calendars
+
 ## State Management
-Utilizes Redux for centralized state management:
+The frontend uses React with a centralized state management approach:
+- **User Authentication State**: Login status and user information
+- **Calendar Data**: Current view, selected dates, and filter settings
+- **Event Information**: Event details and editing states
+- **UI State**: Modal states, loading indicators, and notifications
 
-- **Authentication state**
-- **User profile information**
-- **Post and comment data**
-- **Global application settings**
+## Calendar Views
+Multiple calendar representations are available:
+- **Day View**: Traditional day display 
+- **Month View**: Traditional calendar grid with event indicators
+- **Week View**: Detailed hourly breakdown with event blocks
+- **Year View**: Annual overview with highlighted busy days
+- **Custom Views**: Toggle between different categories or calendars
 
-## API Integration
-**Axios** is used for HTTP requests to the backend API:
+## Event Management
+Users can manage events through:
+- **Click Creation**: Direct calendar click to create events
+- **Detailed Forms**: Full-featured event creation with all options
+- **Drag and Drop**: Reschedule events through intuitive interactions
+- **Bulk Actions**: Manage multiple events simultaneously
 
-- **Centralized API service**
-- **Interceptors for request/response handling**
-- **Error management**
-- **Authentication token management**
-
-## Authentication
-- **JWT-based authentication**
-- **Protected routes for authenticated users**
-- **Role-based access control**
-- **Secure token storage and management**
-
-## Sample Credentials
-There are some logins for testing purposes:
-- **User**: tech_guru92, jane_dev
-- **Admin**: alice_admin, henry_dev
-
-Default test data includes users with the password: `qwerty123Aa@`.
+## Responsive Design
+The application is designed to work across devices:
+- **Mobile Layout**: Optimized for small screens with touch interactions
+- **Tablet View**: Balanced layout for medium-sized screens
+- **Desktop Experience**: Full-featured interface for larger displays
+- **Print Layouts**: Printer-friendly calendar representations
 
 ## Screenshots
-### Home page
-![](docs/home.png)
-### Categories page
-![](docs/categories.png)
-### Posts page
-![](docs/posts.png)
-### Create post page
-![](docs/create_post.png)
-### Profile page
-![](docs/profile.png)
-### Post page
-![](docs/post.png)
-### Post comments
-![](docs/comments.png)
-### Mobile post page
-![](docs/mobile_post.png)
-### Mobile menu page
-![](docs/mobile_menu.png)
-### Tablet home page
-![](docs/tablet_home.png)
-### Tablet users page
-![](docs/tablet_users.png)
+
+### Main page
+![Main page](docs/main.png)
+
+### Event Creation
+![Event Creation](docs/event_creation.png)
+
+### Weekly Calendar View
+![Weekly Calendar View](docs/events.png)
+
+### Year Calendar View
+![Year Calendar View](docs/year_calendar.png)
+
+### Mobile Interface
+![Mobile Interface](docs/mobile.png)
